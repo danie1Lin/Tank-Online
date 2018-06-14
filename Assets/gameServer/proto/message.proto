@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package msg;
+
+import "any.proto";
+
+message Input{
+    int64 UserId = 1;
+    float H_Movement = 2;
+    float V_Movement = 3;
+    string SkillName = 5;
+    float SkillForce = 4;
+    int64 TimeStamp = 6;
+    int64 RunnigNo = 7;
+}
+
+message TransForm {
+    Vector3 Position= 1;
+    Quaternion Rotation = 2; 
+}
+
+message Vector3{
+    double X = 1;
+    double Y = 2;
+    double Z = 3;
+}
+
+message Quaternion{
+    double X = 1;
+    double Y= 2;
+    double Z = 3;
+    double W = 4;
+}
+message  Position{
+    map<int64,TransForm> PosMap = 1;
+    int64 TimeStamp = 2;
+}
+
+message CallFuncInfo {
+    string RunnigNo = 1;
+    int64 TargetId = 2;
+    int64 FromId = 4;
+    int64 TimeStamp = 5;
+    string Func = 6;
+    TransForm FromPos = 7;
+    TransForm ToPos = 8;
+    float Value = 9;
+    repeated google.protobuf.Any Param = 10;
+    repeated BasicType Params = 11;
+    //repeated google.protobuf.Any param = 3;
+}
+message BasicType {
+    oneof Data{
+        string S = 1;
+        int64 L = 2;
+        float F = 3;
+        int32 I = 4;
+        bool B = 5;
+        double D = 6;
+        google.protobuf.Any A = 7;
+    }
+}
+message Error{
+    string ErrType = 1; 
+    string ErrMsg = 2;
+    string RunnigNo = 3;
+    int64 FromId = 4;
+}
+
+service Rpc{
+    rpc SyncPos(stream Input) returns (stream Position){}
+    rpc CallMethod(stream CallFuncInfo) returns (stream CallFuncInfo){}
+    rpc ErrorPipLine(stream Error) returns (stream Error){}
+    rpc Login(LoginInput) returns(UserInfo){}
+    rpc CreateAccount(RegistInput) returns(Error){}
+}
+
+message LoginInput {
+    string UserName = 1;
+    string Pswd = 2;
+}
+
+message RegistInput {
+    string UserName = 1;
+    string Pswd = 2;
+    string Email = 3;
+}
+
+message UserInfo{
+    string UserName = 1;
+    int64 Uuid = 2;
+    map<int64, Character> OwnCharacter = 3;
+    int64 UsedCharacter = 4;
+}
+
+message UserState{
+    enum UserStatus {
+        OnCreating = 0;        
+        Login = 1;
+        Offline = 2;
+        OnPlaying = 3;
+    }
+    UserStatus State = 1; 
+}
+message RoomInfo{
+    int64 Uuid = 1;
+    string Name = 2;
+    string GameType = 3;
+    int64 OwnerUuid = 4;
+    map<int64, UserInfo> UserInRoom = 5;
+    map<int64,bool> ReadyUser = 6;
+    enum RoomStatus {
+        Preparing = 0;
+        OnPlaying = 1;
+        Ending = 2; 
+    }
+    RoomStatus Status = 7;
+    int64 LeftMilliSecond = 8;
+}
+
+//character 即是沒有實體之腳色
+//entity 則藉由character來初始化
+message Character {
+    int64 Uuid = 1;
+    string CharacterType = 2;
+    string Name = 3;
+    Color Color =4;
+    int32 Level = 5;
+    int32 Exp = 6;
+    float MaxHealth = 10;
+    //基本能力值
+    Ability Ability = 7;
+    map<int64,Equipment> EquipmentMap = 8;
+    //戰鬥時添加的狀態
+    map<string,float> Attr  = 9;
+    
+}
+
+message Color {
+    int32 R = 1;
+    int32 G = 2;
+    int32 B = 3;
+}
+
+message Equipment{
+    string Name = 1;
+    string Type =2 ;
+    int64 Uuid = 3 ;
+    Color Color = 4;
+    Ability Ability =5;
+    int32 CD =6;//Cool down time tick
+    int32 Usable =7;
+    int32 Inventory =8;
+}
+
+message Ability{
+    int32 ATK = 1;
+    int32 DEF = 2;
+    float SPD = 3;
+	float TSPD = 6;
+    int32 MP = 4;
+    int32 MAKT = 5;
+}
+
