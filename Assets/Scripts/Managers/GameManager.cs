@@ -8,7 +8,7 @@ using System.Reflection;
 
 using System.Collections.Concurrent;
 
-//using UnityEngine.SceneManagement;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Grpc.Core;
 using Google.Protobuf.WellKnownTypes;
@@ -69,7 +69,10 @@ public class GameManager : MonoBehaviour
 
 	private Character t_entityInfo;
 
-
+    public void RestartGame()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
 	public async Task<CallFuncInfo> GetOutCallFunc(){
 		var f = new CallFuncInfo ();
 		bool getf = false;
@@ -152,10 +155,15 @@ public class GameManager : MonoBehaviour
 
     }
 
-	void FixedUpdate(){
+    private void Update()
+    {
+        if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
+        {
+            RestartGame();
+        }
+    }
 
-
-
+    void FixedUpdate(){
 		createEntityManager ();
 		syncAllPosition ();
 	}
