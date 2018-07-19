@@ -11,12 +11,14 @@ public class Login : MonoBehaviour {
 	public Button LoginButton;
 	public GameManager Gm;
 
+    public AgentRpc agentServer;
 	// Use this for initialization
 	public string password;
 
 	void Start () {
 		LoginButton.onClick.AddListener (LoginClick);
 		RegisterButton.onClick.AddListener (RegistClick);
+        agentServer = Gm.agentServer;
 		//password = "";
 	}
 	
@@ -27,12 +29,15 @@ public class Login : MonoBehaviour {
 	public void LoginClick(){
 		string u = UserNameInput.text;
 		string pswd = PasswordInput.text;
-		Gm.IsLogin = Gm.Client.Login (u, pswd);
+		var userInfo = agentServer.Login (u, pswd);
+        if( userInfo != null ){
+            Gm.IsLogin = true;
+        }
 	}
 	public void RegistClick(){
 		string u = UserNameInput.text;
 		string pswd = PasswordInput.text;
-		Gm.Client.CreateAccount(u, pswd, "");
+		agentServer.RegistAccount(u, pswd, "");
 	}
 
 

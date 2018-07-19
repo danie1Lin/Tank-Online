@@ -3,7 +3,10 @@ using UnityEngine;
 using Msg;
 using System.Collections.Concurrent;
 
+public class Entity
+{
 
+}
 
 [Serializable]
 public class EntityManager
@@ -18,6 +21,8 @@ public class EntityManager
     private TankShooting m_Shooting;
     private TankHealth m_Health;
     private GameObject m_CanvasGameObject;
+
+    public ConcurrentQueue<GameFrame> gameFrame;
 
 	public ConcurrentQueue<UnityEngine.Quaternion> CQ;
 	public ConcurrentQueue<UnityEngine.Vector3> CV;
@@ -93,4 +98,54 @@ public class EntityManager
     {
         m_Instance.SetActive(false);
     }
+
+    /*
+    void createEntityManager()
+    {
+        var f = new CallFuncInfo();
+        if (CreateEntityManagerQueue.TryDequeue(out f))
+        {
+            var t_entityInfo = f.Param[0].Unpack<Character>();
+            var t = util.PraseTransform(f.FromPos);
+            switch (t_entityInfo.CharacterType)
+            {
+                case "Shell":
+                    var shell_Instance = Instantiate(m_entityPrefab["Shell"], t.Item1, t.Item2) as GameObject;
+                    var shell = new EntityManager(t_entityInfo, shell_Instance, shell_Instance.GetComponent<ShellMovement>());
+                    IdMapEntityManager.Add(t_entityInfo.Uuid, shell);
+                    break;
+                case "Player":
+                    var player_Instance = Instantiate(m_entityPrefab["Tank"], t.Item1, t.Item2) as GameObject;
+
+                    var player = new EntityManager(t_entityInfo, player_Instance, player_Instance.GetComponent<TankMovement>());
+                    player.SetPlayer(player_Instance.GetComponent<TankMovement>());
+                    foreach (KeyValuePair<long, Character> item in m_UserInfo.OwnCharacter)
+                    {
+                        if (item.Key == t_entityInfo.Uuid)
+                        {
+                            player.SetMainPlayer();
+                            mainPlayer = player;
+                            IsPlayerCreated = true;
+                            Client.SyncPos(m_UserInfo.Uuid);
+                            m_CameraControl.centerTarget = player.m_Instance.transform;
+                            break;
+                        }
+                    }
+                    m_Players.Add(player);
+                    IdMapEntityManager.Add(t_entityInfo.Uuid, player);
+                    break;
+                case "Enemy":
+                    var enemy_Instance = Instantiate(m_entityPrefab["Tank"], t.Item1, t.Item2) as GameObject;
+                    var enemy = new EntityManager(t_entityInfo, enemy_Instance, enemy_Instance.GetComponent<TankMovement>());
+                    enemy.SetPlayer(enemy_Instance.GetComponent<TankMovement>());
+                    m_Players.Add(enemy);
+                    IdMapEntityManager.Add(t_entityInfo.Uuid, enemy);
+                    break;
+                default:
+                    Debug.Log("No such entity type " + t_entityInfo.CharacterType);
+                    break;
+            }
+        }
+    }
+    */
 }

@@ -29,7 +29,6 @@ public class RoomManager : MonoBehaviour {
 		roomInfo.Name = name;
 		roomInfo.GameType = "room";
 		f.Param.Add(Any.Pack(roomInfo));
-		Gm.OutFuncQueue.Enqueue (f);
 
 	}
 	// Update is called once per frame

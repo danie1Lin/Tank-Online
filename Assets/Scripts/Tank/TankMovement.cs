@@ -198,7 +198,7 @@ public class TankMovement : MonoBehaviour , IEntity, IHealthView
                 m_input.HMovement = m_TurnInputValue;
                 m_input.VMovement = m_MovementInputValue;
                 m_input.TimeStamp = util.GetTimeStamp();
-                gm.OutInputQueue.Enqueue(m_input);
+                //gm.OutInputQueue.Enqueue(m_input);
                 //Debug.Log(m_input);
             }
             Last_MovementInputValue = m_MovementInputValue;
@@ -285,7 +285,6 @@ public class TankMovement : MonoBehaviour , IEntity, IHealthView
         f.Func = "Shoot";
         f.Value = m_CurrentLaunchForce;
         F.Param.Add(Any.Pack(f));
-        gm.OutFuncQueue.Enqueue(F);
 
         m_CurrentLaunchForce = m_MinLaunchForce;
     }

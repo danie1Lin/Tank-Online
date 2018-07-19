@@ -137,15 +137,15 @@ public class SelectRoom : MonoBehaviour
         EnterRoomButton.interactable = true;
         LeaveRoomAction = () => {
             CallFuncInfo f = new CallFuncInfo { Func = "LeaveRoom", TargetId = roomInfo.Uuid, FromId = Gm.m_UserInfo.Uuid };
-            Gm.AddOutFuncQueue(f);
+            //Gm.AddOutFuncQueue(f);
         };
         EnterRoomAction = () => {
             CallFuncInfo f = new CallFuncInfo { Func = "EnterRoom", TargetId = roomInfo.Uuid, FromId = Gm.m_UserInfo.Uuid };
-            Gm.AddOutFuncQueue(f);
+            //Gm.AddOutFuncQueue(f);
         };
         ReadyRoomAction = () => {
             CallFuncInfo f = new CallFuncInfo { Func = "ReadyRoom", TargetId = roomInfo.Uuid, FromId = Gm.m_UserInfo.Uuid };
-            Gm.AddOutFuncQueue(f);
+            //Gm.AddOutFuncQueue(f);
         };
         EnterRoomButton.onClick.AddListener(EnterRoomAction);
         LeaveRoomButton.onClick.AddListener(LeaveRoomAction);
@@ -193,4 +193,6 @@ public class SelectRoom : MonoBehaviour
 		rwl.ReleaseWriterLock ();
 		return success;
 	}
+
+
 }

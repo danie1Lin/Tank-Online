@@ -77,7 +77,7 @@ public class TankShooting : MonoBehaviour
 		f.Func = "Shoot";
 		f.Value = m_CurrentLaunchForce;
 		F.Param.Add(Any.Pack(f));
-		gm.OutFuncQueue.Enqueue (F);
+		//gm.OutFuncQueue.Enqueue (F);
 
 		m_CurrentLaunchForce = m_MinLaunchForce;
     }

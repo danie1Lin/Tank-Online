@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿
+
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,6 +15,7 @@ using UnityEngine.UI;
 using Grpc.Core;
 using Google.Protobuf.WellKnownTypes;
 using Msg;
+using UnityStandardAssets.CrossPlatformInput;
 
 
 public class Room {
@@ -20,32 +23,32 @@ public class Room {
 }
 public class GameManager : MonoBehaviour
 {
-	//Object
+    const string agentServeAddr = "35.201.150.218:8080";
+
+    //Object
     public CameraControl m_CameraControl;
 	public List<GameObject> m_entityPrefablist;
 	public Dictionary<string,GameObject> m_entityPrefab;
 	public EntityManager mainPlayer;
     public List<EntityManager> m_Players;
 
+    //View
 	public GameObject LoginPanel;
 	public GameObject DebugPanel;
 	public Canvas RoomCanvas;
 	public Canvas IndexCanvas;
-	public RpcClient Client;
+    public Canvas GamePlayCanvas;
+
+    //Rpc
+    public AgentRpc agentServer;
+    public GameRpc gameServer;
 	//Game State
 	public bool IsLogin ;
 	public bool IsRoomStart;
 	public bool IsRoomEnd;
 	public bool	IsPlayerCreated;
+    public Joystick m_joystick;
 
-	public ConcurrentQueue<CallFuncInfo> OutFuncQueue;
-	private ConcurrentQueue<CallFuncInfo> InFuncQueue;
-	public ConcurrentQueue<Position> InPosQueue;
-	public ConcurrentQueue<Msg.Input> OutInputQueue;
-	private ConcurrentQueue<Error> OutErrQueue;
-	private ConcurrentQueue<Error> InErrQueue;
-	private ConcurrentQueue<CallFuncInfo> CreateEntityManagerQueue;
-	private ConcurrentQueue<CallFuncInfo> DestroyEntityManagerQueue;
 	//player's info
 	public UserInfo m_UserInfo;
 	public RoomInfo m_RoomInfo;
@@ -71,59 +74,28 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
+        //gameServer.Stop();
+        agentServer.Stop();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
-	public async Task<CallFuncInfo> GetOutCallFunc(){
-		var f = new CallFuncInfo ();
-		bool getf = false;
-		while ( !getf){
-			if (OutFuncQueue.TryDequeue(out f)){
-					getf = true;
-			}
-			await Task.Delay (1);
-		}
-		return f;
-	}
 	/// <summary>
 	/// Adds the out func queue.
 	/// </summary>
 	/// <returns>The out func queue.</returns>
 	/// <param name="f">F.</param>
-	public Task AddOutFuncQueue(CallFuncInfo f){
-		var T = Task.Run (async () => {
-			OutFuncQueue.Enqueue (f);
-		});
-		return T;
-	}
 
-	public CallFuncInfo GetInCallFunc(){
-		var f = new CallFuncInfo ();
-		return f;
-	}
-
-	public void AddInFuncQueue(CallFuncInfo f){
-		
-	}
-    private void Start()
+    private void Awake()
     {
+        m_joystick.enabled = true;
+
 		m_Players = new List<EntityManager> ();
 		m_entityPrefab = new Dictionary<string, GameObject> ();
 		t_entityInfo = new Character ();
 		IdMapUserInfo = new Dictionary<long,UserInfo> ();
 
-		//init Queue
-		OutFuncQueue = new ConcurrentQueue<CallFuncInfo>();
-		InFuncQueue = new ConcurrentQueue<CallFuncInfo>();
-		InPosQueue = new ConcurrentQueue<Position>();
-		OutInputQueue = new ConcurrentQueue<Msg.Input>();
-		OutErrQueue =  new ConcurrentQueue<Error>() ;
-		InErrQueue = new ConcurrentQueue<Error>();
-		CreateEntityManagerQueue = new ConcurrentQueue<CallFuncInfo> ();
 		IdMapEntityManager = new Dictionary<long,EntityManager> ();
-
 		//GameObj
 		selectRoomCanvas = RoomCanvas.GetComponent<SelectRoom> ();
-
 		//Reflection
 		type = typeof(GameManager);
 
@@ -133,6 +105,9 @@ public class GameManager : MonoBehaviour
 		}
 		Debug.Log ("Prefab :"+m_entityPrefab);
 
+
+        agentServer = new AgentRpc(agentServeAddr);
+
 		//state
 		IsLogin = false;
 		IsRoomStart = false;
@@ -141,18 +116,16 @@ public class GameManager : MonoBehaviour
 		//
 		RoomCanvas.enabled = false;
 		IndexCanvas.enabled = true;
+        GamePlayCanvas.enabled = false;
+
 		DebugPanel.SetActive (false);
 		m_UserInfo = null;
 		m_EntityManagerInfo = null;
 
-
-
-		var channel = new Channel("35.201.150.218:8080", ChannelCredentials.Insecure);
-		Client = new RpcClient(new Msg.Rpc.RpcClient(channel), this);
-
-
 		StartCoroutine(GameLoop());
 
+
+        
     }
 
     private void Update()
@@ -164,29 +137,6 @@ public class GameManager : MonoBehaviour
     }
 
     void FixedUpdate(){
-		createEntityManager ();
-		syncAllPosition ();
-	}
-
-	void syncAllPosition(){
-		if (InPosQueue.TryDequeue (out m_pos)) {
-			var time = DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0);
-			var t1 = Convert.ToInt64 (time.TotalMilliseconds) - m_pos.TimeStamp;
-			//Debug.Log("Position Get [Delay]"+t1+"(ms)");
-			foreach (KeyValuePair<long,Msg.TransForm> p in m_pos.PosMap) {
-				EntityManager entity;
-				IdMapEntityManager.TryGetValue (p.Key, out entity);
-				if (entity != null) {
-                    var t = util.PraseTransform(p.Value);
-					m_q = t.Item2;
-					m_p = t.Item1;
-					entity.CQ.Enqueue (m_q);
-					entity.CV.Enqueue (m_p);
-				} else {
-					//Debug.Log ("Null?" + p.Key);
-				}
-			}
-		}
 	}
 
 	public void SetUser(UserInfo userInfo, bool isLocalPlayer){
@@ -206,7 +156,6 @@ public class GameManager : MonoBehaviour
 		Debug.Log ("[SetCameraTargets]"+ m_CameraControl.m_Targets);
    
     }
-
 	private IEnumerator Login(){
 		//wait login suceed	
 		LoginPanel.SetActive(true);
@@ -225,12 +174,13 @@ public class GameManager : MonoBehaviour
 	/// <returns>The room.</returns>
 	private IEnumerator ChooseRoom(){
 		RoomCanvas.enabled = true;
-		while ( ! IsRoomStart ) {
-			yield return null;
+        var t = new WaitForSeconds(1);
+        while ( ! IsRoomStart ) {
+            yield return t;
 		}
 		RoomCanvas.enabled = false;
-	}
-
+        GamePlayCanvas.enabled = true;
+    }
 	/// <summary>
 	/// Main Loop
 	/// </summary>
@@ -253,8 +203,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-
-
     private IEnumerator RoundStarting()
     {
 		while (!IsPlayerCreated) {
@@ -264,7 +212,7 @@ public class GameManager : MonoBehaviour
 		SetCameraTargets();
 		ResetAllTanks ();
 		m_CameraControl.SetStartPositionAndSize ();
-
+        
     }
 
 
@@ -290,12 +238,13 @@ public class GameManager : MonoBehaviour
             m_Players[i].Reset();
         }
     }
-		
 
 	void OnApplicationQuit() {
 		Debug.Log ("Exit !");
-		Client.Stop();
+		agentServer.Stop();
+
 	}
+    /*
 	public void CallMathod (CallFuncInfo fInfo){
 		System.Type type = this.GetType ();
 		MethodInfo f = type.GetMethod (fInfo.Func);
@@ -381,49 +330,8 @@ public class GameManager : MonoBehaviour
         Debug.Log("Calibrate offset: " + util.TimeOffset+" ms, Delay: "+ delay+" ms");
     }
 
-	void createEntityManager(){
-		var f = new CallFuncInfo ();
-		if (CreateEntityManagerQueue.TryDequeue (out f)) {
-			var t_entityInfo = f.Param [0].Unpack<Character> ();
-			var t = util.PraseTransform(f.FromPos);
-			switch (t_entityInfo.CharacterType) {
-			case "Shell":
-                var shell_Instance = Instantiate(m_entityPrefab["Shell"], t.Item1, t.Item2) as GameObject;
-                var shell = new EntityManager(t_entityInfo, shell_Instance, shell_Instance.GetComponent<ShellMovement>());
-				IdMapEntityManager.Add (t_entityInfo.Uuid, shell);
-				break;
-			case "Player":
-                var player_Instance = Instantiate(m_entityPrefab["Tank"], t.Item1, t.Item2) as GameObject;
-                
-                var player = new EntityManager (t_entityInfo, player_Instance, player_Instance.GetComponent<TankMovement>());
-                player.SetPlayer(player_Instance.GetComponent<TankMovement>());
-				foreach (KeyValuePair<long,Character> item in m_UserInfo.OwnCharacter) {
-					if (item.Key == t_entityInfo.Uuid) {
-						player.SetMainPlayer ();
-						mainPlayer = player;
-						IsPlayerCreated = true;
-						Client.SyncPos (m_UserInfo.Uuid);
-                        m_CameraControl.centerTarget = player.m_Instance.transform;
-						break;
-					}
-				}
-				m_Players.Add(player);
-				IdMapEntityManager.Add (t_entityInfo.Uuid, player);
-				break;
-            case "Enemy":
-                var enemy_Instance = Instantiate(m_entityPrefab["Tank"], t.Item1, t.Item2) as GameObject;
-                var enemy = new EntityManager(t_entityInfo, enemy_Instance, enemy_Instance.GetComponent<TankMovement>());
-                enemy.SetPlayer(enemy_Instance.GetComponent<TankMovement>());
-                m_Players.Add(enemy);
-                IdMapEntityManager.Add(t_entityInfo.Uuid, enemy);
-                break;
-			default:
-				Debug.Log("No such entity type "+t_entityInfo.CharacterType);
-				break;
-			}
-		}
-	}
-	/*
+	
+	
 	void destroyEntityManager(){
 		var t_entityInfo = new Character ();
 		if (DestroyEntityManagerQueue.TryDequeue (out t_entityInfo)) {

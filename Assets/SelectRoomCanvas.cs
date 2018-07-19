@@ -54,7 +54,7 @@ public class SelectRoomCanvas : MonoBehaviour
 		}
 		CallFuncInfo f = new CallFuncInfo{ Func = "RoomReady",FromId = Gm.m_UserInfo.Uuid,TargetId = roomInfo.Uuid };
 		ReadyRoomButton.onClick.AddListener (() => {
-			Gm.AddOutFuncQueue(f);
+			//Gm.AddOutFuncQueue(f);
 		});
 	}
 }
