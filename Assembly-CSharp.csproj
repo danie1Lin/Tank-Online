@@ -8,7 +8,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>10.0.20506</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <RootNamespace></RootNamespace>
+    <RootNamespace>
+    </RootNamespace>
     <ProjectGuid>{B166B7D7-DBA3-1697-917B-5F979E7175CB}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -66,6 +67,7 @@
     <Compile Include="Assets\_Completed-Assets\Scripts\Tank\TankMovement.cs" />
     <Compile Include="Assets\_Completed-Assets\Scripts\Tank\TankShooting.cs" />
     <Compile Include="Assets\_Completed-Assets\Scripts\UI\UIDirectionControl.cs" />
+    <Compile Include="Assets\FloatingUserName.cs" />
     <Compile Include="Assets\gameServer\proto\Google.Protobuf\ByteArray.cs" />
     <Compile Include="Assets\gameServer\proto\Google.Protobuf\ByteString.cs" />
     <Compile Include="Assets\gameServer\proto\Google.Protobuf\CodedInputStream.cs" />
@@ -257,6 +259,7 @@
     <Compile Include="Assets\gameServer\proto\MessageGrpc.cs" />
     <Compile Include="Assets\gameServer\proto\RpcClient.cs" />
     <Compile Include="Assets\Login.cs" />
+    <Compile Include="Assets\PlayerReview.cs" />
     <Compile Include="Assets\PostProcessing\Runtime\Attributes\GetSetAttribute.cs" />
     <Compile Include="Assets\PostProcessing\Runtime\Attributes\MinAttribute.cs" />
     <Compile Include="Assets\PostProcessing\Runtime\Attributes\TrackballAttribute.cs" />
@@ -302,6 +305,7 @@
     <Compile Include="Assets\PostProcessing\Runtime\Utils\MaterialFactory.cs" />
     <Compile Include="Assets\PostProcessing\Runtime\Utils\RenderTextureFactory.cs" />
     <Compile Include="Assets\RoomManager.cs" />
+    <Compile Include="Assets\RoomPrepare.cs" />
     <Compile Include="Assets\Scripts\Camera\CameraControl.cs" />
     <Compile Include="Assets\Scripts\Managers\DictionarySerializer.cs" />
     <Compile Include="Assets\Scripts\Managers\GameManager.cs" />

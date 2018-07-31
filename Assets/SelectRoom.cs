@@ -13,32 +13,37 @@ using System.Threading;
 
 public class SelectRoom : MonoBehaviour
 {
-	public Button CreateRoomButton;
+    public AgentRpc agent;
+
+    public Button CreateRoomButton;
 	public Button ReadyRoomButton;
 	public Button EnterRoomButton;
 	public Button LeaveRoomButton;
-	public ScrollRect RoomScrollList;
+    public GameObject m_buttonPrefab;
+
+    public ScrollRect RoomScrollList;
 	public Text RoomInfoText;
 	public GameManager Gm;
 	public Sprite buttonSprite;
-	public ConcurrentQueue<RoomInfo> addRoomQueue;
 	public float buttonH;
 	public float Offset;
 	public Font textFont;
 	private int state;
 
-    private Dictionary<Int64,RoomInfo> roomMap;
+    public ConcurrentQueue<RoomList> RoomListQueue; 
+
+    private Dictionary<Int64,RoomListItem> roomMap;
 	//0 not 
 	// Use this for initialization
 	static ReaderWriterLock rwl = new ReaderWriterLock();
 	private Button[] buttonList;
-	public RoomInfo tempRoomInfo;
+	public RoomList tempRoomList;
 	private int buttonNum;
     private UnityAction LeaveRoomAction;
     private UnityAction EnterRoomAction;
     private UnityAction ReadyRoomAction;
 
-    void Func()
+    public void Func()
     {
 
     }
@@ -47,29 +52,38 @@ public class SelectRoom : MonoBehaviour
         LeaveRoomAction = new UnityAction(Func);
         EnterRoomAction = new UnityAction(Func);
         ReadyRoomAction = new UnityAction(Func);
-        tempRoomInfo = new RoomInfo ();
-		addRoomQueue = new ConcurrentQueue<RoomInfo> ();
-        roomMap = new Dictionary<long, RoomInfo>();
-		buttonNum = 0;
-		EnterRoomButton.interactable = false;
+        tempRoomList = new RoomList();
+        RoomListQueue = new ConcurrentQueue<RoomList>();
+        agent.RoomListQueue = RoomListQueue;
+        roomMap = new Dictionary<long, RoomListItem>();
 		LeaveRoomButton.interactable = false;
 		ReadyRoomButton.interactable = false;
-        EnterRoomButton.onClick.AddListener(EnterRoomAction);
         LeaveRoomButton.onClick.AddListener(LeaveRoomAction);
         ReadyRoomButton.onClick.AddListener(ReadyRoomAction);
 		state = 0;
-
 	}
 
 	// Update is called once per frame
 	void Update () {
-		if (addRoomQueue.TryDequeue (out tempRoomInfo)) {
-            foreach (KeyValuePair<Int64,RoomInfo> room in roomMap){
-                if (room.Key == tempRoomInfo.Uuid) {
-                    return;
+		if (RoomListQueue.TryDequeue (out tempRoomList)) {
+            
+            foreach (var NewRoomItem in tempRoomList.Item) {
+                bool add = true;
+                foreach (KeyValuePair<Int64, RoomListItem> lastRoomItem in roomMap)
+                {
+                    if (lastRoomItem.Key == NewRoomItem.Uuid)
+                    {
+                        //Update button
+                        roomMap[lastRoomItem.Key].Update(NewRoomItem);
+                        add = false;
+                    }
                 }
+                if (add)
+                {
+                    addButton(NewRoomItem);
+                }
+                
             }
-			addButton (tempRoomInfo);
 		}
 		if (state == 1) {
             EnterRoomButton.interactable = true;
@@ -85,8 +99,16 @@ public class SelectRoom : MonoBehaviour
 			LeaveRoomButton.interactable = false;
 		}
 	}
-
-	public void addButton(RoomInfo roomInfo) {
+    public void addButton(RoomReview roomReview) {
+        var Item = new RoomListItem(Instantiate(m_buttonPrefab, RoomScrollList.content),roomReview,agent);
+        roomMap[roomReview.Uuid] = Item;
+        var rect = RoomScrollList.content.rect;
+        var buttonNum = roomMap.Count;
+        var im = Item.Item.GetComponent<Image>();
+        im.rectTransform.sizeDelta = new Vector2(rect.width - 5, buttonH);
+        Item.Item.transform.localPosition = new UnityEngine.Vector3 { y = -Offset - (buttonNum) * buttonH + buttonH / 2, x = 0 + (rect.width - 5) / 2 };
+        roomMap[roomReview.Uuid] = Item;
+        /*
 		buttonNum += 1;
 		//create gameobject
 		GameObject obj = new GameObject(roomInfo.Uuid.ToString());
@@ -119,8 +141,8 @@ public class SelectRoom : MonoBehaviour
 		});
 		//add component button
 		//add listener
-
-	}
+        */
+    }
 	void ReviewRoomInfo(RoomInfo roomInfo){
 		Debug.Log (roomInfo);
         state = 1;
@@ -195,4 +217,63 @@ public class SelectRoom : MonoBehaviour
 	}
 
 
+}
+
+public class RoomListItem {
+    public Button DetailButton;
+    public Text RoomName;
+    public Text RoomMode;
+    public Text PlayerCount;
+    public Button EnterButton;
+    public GameObject Item;
+    public long Uuid;
+    public UnityAction EnterRoomAction;
+    public AgentRpc agent;
+    public RoomListItem(GameObject Item,RoomReview review,AgentRpc agent)
+    {
+        this.Item = Item;
+        this.agent = agent;
+        DetailButton = Item.GetComponent<Button>();
+        EnterButton = Item.transform.Find("EnterButton").gameObject.GetComponent<Button>();
+        
+        RoomMode = Item.transform.Find("RoomMode").gameObject.GetComponent<Text>();
+        RoomName = Item.transform.Find("RoomName").gameObject.GetComponent<Text>();
+        PlayerCount = Item.transform.Find("PlayerCount").gameObject.GetComponent<Text>();
+        Uuid = review.Uuid;
+        RoomName.text = review.Name;
+        RoomMode.text = review.GameType;
+        PlayerCount.text = review.InRoomPlayer.ToString()+" / " + review.MaxPlayer.ToString();
+        EnterRoomAction = new UnityAction (() =>
+        {
+            if (agent.EnterRoom(review.Uuid))
+            {
+                Debug.Log("Enter Room[" + review.Name + "]");
+            }
+        });
+        EnterButton.onClick.AddListener(EnterRoomAction);
+    }
+
+    public void Update(RoomReview review)
+    {
+        Uuid = review.Uuid;
+        RoomName.text = review.Name;
+        RoomMode.text = review.GameType;
+        PlayerCount.text = review.InRoomPlayer.ToString() + " / " + review.MaxPlayer.ToString();
+        EnterRoomAction = new UnityAction(() =>
+        {
+            if (agent.EnterRoom(review.Uuid))
+            {
+                Debug.Log("Enter Room[" + review.Name + "]");
+            }
+        });
+    }
+
+}
+
+public class ListItem<T>
+{
+    public ListItem()
+    {
+
+    }
 }

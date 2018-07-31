@@ -19,10 +19,11 @@ public class SelectRoomCanvas : MonoBehaviour
 	// Use this for initialization
 	private Button[] buttonList;
 	private RoomInfo tempRoomInfo;
-	void Start () {
 
+    public RoomList roomList;
+    
+    void Start () {
 	}
-
 	// Update is called once per frame
 	void Update () {
 		if (addRoomQueue.TryDequeue (out tempRoomInfo)) {

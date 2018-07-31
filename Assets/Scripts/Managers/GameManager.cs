@@ -31,9 +31,10 @@ public class GameManager : MonoBehaviour
 	public Dictionary<string,GameObject> m_entityPrefab;
 	public EntityManager mainPlayer;
     public List<EntityManager> m_Players;
-
+    public Canvas RoomPrepareCanvas;
+    public RoomPrepare roomPrepare;
     //View
-	public GameObject LoginPanel;
+    public GameObject LoginPanel;
 	public GameObject DebugPanel;
 	public Canvas RoomCanvas;
 	public Canvas IndexCanvas;
@@ -65,7 +66,8 @@ public class GameManager : MonoBehaviour
     private EntityManager m_RoundWinner;
     private EntityManager m_GameWinner;
 	private SelectRoom selectRoomCanvas;
-	private Msg.Position m_pos;
+    private RoomManager RoomMaster;
+    private Msg.Position m_pos;
 
 	private UnityEngine.Quaternion m_q;
 	private UnityEngine.Vector3 m_p;
@@ -95,7 +97,7 @@ public class GameManager : MonoBehaviour
 
 		IdMapEntityManager = new Dictionary<long,EntityManager> ();
 		//GameObj
-		selectRoomCanvas = RoomCanvas.GetComponent<SelectRoom> ();
+
 		//Reflection
 		type = typeof(GameManager);
 
@@ -104,12 +106,14 @@ public class GameManager : MonoBehaviour
 			m_entityPrefab.Add (x.name, x);
 		}
 		Debug.Log ("Prefab :"+m_entityPrefab);
-
-
         agentServer = new AgentRpc(agentServeAddr);
-
-		//state
-		IsLogin = false;
+        selectRoomCanvas = RoomCanvas.GetComponent<SelectRoom>();
+        selectRoomCanvas.agent = agentServer;
+        RoomMaster = RoomCanvas.GetComponentInChildren<RoomManager>();
+        RoomMaster.agent = agentServer;
+        roomPrepare.agent = agentServer;
+        //state
+        IsLogin = false;
 		IsRoomStart = false;
 		IsRoomEnd = false;
 		IsPlayerCreated = false;
@@ -166,8 +170,9 @@ public class GameManager : MonoBehaviour
 		}
 		LoginPanel.SetActive (false);
 		IndexCanvas.enabled = false;
-		//隱藏LoginPanel
-	}
+        agentServer.UpdateRoomList();
+        //隱藏LoginPanel
+    }
 	/// <summary>
 	/// Chooses the room.
 	/// </summary>
