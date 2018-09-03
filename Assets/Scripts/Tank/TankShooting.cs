@@ -37,7 +37,6 @@ public class TankShooting : MonoBehaviour
     {
         m_FireButton = "Fire" + m_PlayerNumber;
         m_ChargeSpeed = (m_MaxLaunchForce - m_MinLaunchForce) / m_MaxChargeTime;
-
 		m_Fired = false;
     }
 
@@ -68,15 +67,7 @@ public class TankShooting : MonoBehaviour
 
     private void Fire()
     {
-		m_Fired = true;
-		Msg.CallFuncInfo F = new Msg.CallFuncInfo ();
-		F.Func = "Entity";
-		F.TargetId = gm.mainPlayer.entityInfo.Uuid;
-		F.TimeStamp = util.GetTimeStamp ();
-		Msg.CallFuncInfo f = new Msg.CallFuncInfo ();
-		f.Func = "Shoot";
-		f.Value = m_CurrentLaunchForce;
-		F.Param.Add(Any.Pack(f));
+        m_Fired = true;
 		//gm.OutFuncQueue.Enqueue (F);
 
 		m_CurrentLaunchForce = m_MinLaunchForce;

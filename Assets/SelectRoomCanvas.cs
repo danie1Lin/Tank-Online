@@ -47,15 +47,6 @@ public class SelectRoomCanvas : MonoBehaviour
 
 	}
 	void ReviewRoomInfo(RoomInfo roomInfo){
-		RoomInfoText.text = "Room Name: " + roomInfo.Name +
-			"\nRoom ID: " + roomInfo.Uuid.ToString() +
-			"\nOwner ID: " + roomInfo.OwnerUuid.ToString() + "\n Users In Room :\n";
-		foreach (KeyValuePair<long,UserInfo> u in roomInfo.UserInRoom) {
-			RoomInfoText.text += "\t[" + u.Key.ToString() + "]" + u.Value.UserName;
-		}
-		CallFuncInfo f = new CallFuncInfo{ Func = "RoomReady",FromId = Gm.m_UserInfo.Uuid,TargetId = roomInfo.Uuid };
-		ReadyRoomButton.onClick.AddListener (() => {
-			//Gm.AddOutFuncQueue(f);
-		});
+
 	}
 }

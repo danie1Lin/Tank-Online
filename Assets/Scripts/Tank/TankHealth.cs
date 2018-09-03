@@ -1,15 +1,15 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-public class TankHealth : MonoBehaviour
+public class TankHealth : EntityHealth
 {
-    public float m_StartingHealth = 100f;          
+    public float m_StartingHealth;          
     public Slider m_Slider;                        
     public Image m_FillImage;                      
     public Color m_FullHealthColor = Color.green;  
     public Color m_ZeroHealthColor = Color.red;    
     public GameObject m_ExplosionPrefab;
-    public EntityManager em;
+
 
     private AudioSource m_ExplosionAudio;          
     private ParticleSystem m_ExplosionParticles;   
@@ -23,11 +23,13 @@ public class TankHealth : MonoBehaviour
         m_ExplosionAudio = m_ExplosionParticles.GetComponent<AudioSource>();
 
         m_ExplosionParticles.gameObject.SetActive(false);
+        enabled = false;
     }
 
 
     private void OnEnable()
     {
+        m_StartingHealth = gameObject.GetComponent<Entity>().character.MaxHealth;
         m_CurrentHealth = m_StartingHealth;
         m_Dead = false;
         SetHealthUI();
@@ -35,12 +37,16 @@ public class TankHealth : MonoBehaviour
 
     private void Update()
     {
-        float health;
-        if (em.HealthQ.TryDequeue(out health))
+        m_CurrentHealth = gameObject.GetComponent<Entity>().state.Health;
+        if (gameObject.GetComponent<Entity>().IsSyncToServer)
         {
-            m_CurrentHealth = health;
-            SetHealthUI();
+            if (m_CurrentHealth <= 0)
+            {
+                OnDeath();
+            }
         }
+        
+        SetHealthUI();
     }
 
     private void SetHealthUI()
@@ -53,18 +59,23 @@ public class TankHealth : MonoBehaviour
 
     public void OnDeath()
     {
-		m_Dead = true;
-		m_ExplosionParticles.transform.position = transform.position;
-		m_ExplosionParticles.gameObject.SetActive (true);
 
-		// Play the particle system of the tank exploding.
-		m_ExplosionParticles.Play ();
-
-		// Play the tank explosion sound effect.
-		m_ExplosionAudio.Play();
-
-		// Turn the tank off.
-		gameObject.SetActive (false);
+        EntityManager.instance.DestoryEntityByClient(gameObject.GetComponent<Entity>().state.Uuid);
         // Play the effects for the death of the tank and deactivate it.
+    }
+
+    private void OnDestroy()
+    {
+        m_Dead = true;
+        var e = Instantiate(m_ExplosionParticles, transform.position, transform.rotation);
+
+        e.gameObject.SetActive(true);
+
+        // Play the particle system of the tank exploding.
+        e.Play();
+
+        // Play the tank explosion sound effect.
+        e.Play();
+        Destroy(e, e.duration);
     }
 }

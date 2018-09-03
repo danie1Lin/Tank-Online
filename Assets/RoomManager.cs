@@ -19,7 +19,7 @@ public class RoomManager : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		CreateButton.onClick.AddListener (createRoom);
-        var playerCountText = MaxPlayer.transform.Find("SliderText").gameObject.GetComponent<Text>();
+        var playerCountText = this.gameObject.transform.Find("SliderText").gameObject.GetComponent<Text>();
         MaxPlayer.onValueChanged.AddListener((num)=>{
             playerCountText.text = "Maximum Aoumt of Player " + ((int)num).ToString();
         });

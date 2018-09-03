@@ -110,7 +110,7 @@ public class TankMovement : MonoBehaviour , IEntity, IHealthView
 		var obj = GameObject.Find("GameManager");
 		gm = obj.GetComponent<GameManager> ();
 		m_input = new Msg.Input ();
-		m_input.UserId = gm.m_UserInfo.Uuid;
+		//m_input.UserId = gm.m_UserInfo.Uuid;
 
 		step = 10f;
 		m_q = transform.rotation;
@@ -195,8 +195,8 @@ public class TankMovement : MonoBehaviour , IEntity, IHealthView
             // Store the player's input and make sure the audio for the engine is playing.
             if (Last_MovementInputValue != m_MovementInputValue || Last_TurnInputValue != m_TurnInputValue)
             {
-                m_input.HMovement = m_TurnInputValue;
-                m_input.VMovement = m_MovementInputValue;
+                //m_input.HMovement = m_TurnInputValue;
+                //m_input.VMovement = m_MovementInputValue;
                 m_input.TimeStamp = util.GetTimeStamp();
                 //gm.OutInputQueue.Enqueue(m_input);
                 //Debug.Log(m_input);
@@ -277,21 +277,10 @@ public class TankMovement : MonoBehaviour , IEntity, IHealthView
     private void Fire()
     {
         m_Fired = true;
-        Msg.CallFuncInfo F = new Msg.CallFuncInfo();
-        F.Func = "Entity";
-        F.TargetId = gm.mainPlayer.entityInfo.Uuid;
-        F.TimeStamp = util.GetTimeStamp();
-        Msg.CallFuncInfo f = new Msg.CallFuncInfo();
-        f.Func = "Shoot";
-        f.Value = m_CurrentLaunchForce;
-        F.Param.Add(Any.Pack(f));
+
 
         m_CurrentLaunchForce = m_MinLaunchForce;
     }
-
-    
-
-
     public void Shoot()
     {
         m_ShootingAudio.clip = m_FireClip;
@@ -300,7 +289,6 @@ public class TankMovement : MonoBehaviour , IEntity, IHealthView
         // Instantiate and launch the shell.
         //shellInstance.velocity = m_CurrentLaunchForce * m_FireTransform.forward;
     }
-
     private void SetHealthUI()
     {
         // Adjust the value and colour of the slider.

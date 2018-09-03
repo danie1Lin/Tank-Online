@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Events;
 using Google.Protobuf.WellKnownTypes;
 using Google.Protobuf.Collections;
 using Google.Protobuf;
@@ -16,15 +18,61 @@ public class RoomPrepare : MonoBehaviour {
     public GameObject m_camera;
     public GameObject m_DefaultCharacter;
     public Dictionary<long, GameObject> m_CharacterPrefab;
+    public Button m_LeaveButton;
+    public Button m_ReadyButton;
     private RoomContent TempRoomConent;
     private Dictionary<string, PlayerInfoItem> playerMap;
+    public UnityAction ReadyRoomAction;
+    public UnityAction CancelRoomAction;
+    public ColorPicker picker;
+    public GameManager gm;
     
-	// Use this for initialization
-	void Start () {
+
+    // Use this for initialization
+    void Start () {
         RoomContentQueue = new ConcurrentQueue<RoomContent>();
         playerMap = new Dictionary<string, PlayerInfoItem>();
         m_CharacterPrefab = new Dictionary<long, GameObject>();
-        agent.RoomContentQueue = RoomContentQueue;
+        picker.onValueChanged.AddListener((color) => {
+            Debug.Log("Change color" + color);
+            var info = playerMap[gm.m_UserInfo.UserName].info.Character;
+            CharacterSetting setting = new CharacterSetting();
+            setting.Color = new Msg.Color();
+            setting.Color.R = (int)(255*color.r);
+            setting.Color.G = (int)(255*color.g);
+            setting.Color.B = (int)(255*color.b);
+            setting.Equipments.AddRange(info.Equipments);
+            setting.Uuid = info.Uuid;
+            if (agent.SettingCharacter(setting))
+            {
+                Debug.Log("Change color" + color);
+            }
+        });
+        ReadyRoomAction = () =>
+        {
+            //agent;
+            if (agent.ReadyRoom())
+            {
+                Debug.Log("Ready");
+                agent.AquireGameServer();
+                //m_ReadyButton.GetComponent<Text>().text = "Cancel";
+                //m_ReadyButton.onClick.RemoveListener(ReadyRoomAction);
+                //m_ReadyButton.onClick.AddListener(CancelRoomAction);
+                
+            }
+        };
+        CancelRoomAction = () =>
+        {
+            //agent;
+            if (agent.ReadyRoom())
+            {
+                Debug.Log("Cancel Ready");
+                m_ReadyButton.GetComponent<Text>().text = "Ready";
+                m_ReadyButton.onClick.RemoveListener(CancelRoomAction);
+                m_ReadyButton.onClick.AddListener(ReadyRoomAction);
+            }
+        };
+        m_ReadyButton.onClick.AddListener(ReadyRoomAction);
     }
 	
 	// Update is called once per frame
@@ -67,13 +115,23 @@ public class RoomPrepare : MonoBehaviour {
         else
         {
             playerInstance = Instantiate(m_DefaultCharacter);
-            
         }
         
         playerInstance.transform.position = v;
         playerMap[info.UserName] = new PlayerInfoItem(info,playerInstance, playerMap.Count);
         //place avartar in sequence
         
+    }
+
+    public void Clean()
+    {
+        foreach(KeyValuePair<string,PlayerInfoItem> player in playerMap)
+        {
+            Destroy(player.Value.Character);
+            
+            //Destroy(player.Value);
+        }
+        playerMap.Clear();
     }
 }
 
@@ -82,21 +140,37 @@ public class PlayerInfoItem
     public PlayerInfo info;
     public GameObject Character;
     public int Index;
+    public ParticleSystem p;
     public PlayerInfoItem(PlayerInfo info,GameObject Character,int Index)
     {
         this.info = info;
         this.Character = Character;
         this.Character.transform.Find("UserName").GetComponent<TextMesh>().text = info.UserName;
+        p = this.Character.transform.Find("ReadySign").GetComponent<ParticleSystem>();
     }
 
     public void Update(PlayerInfo info)
     {
+        Debug.Log("Update player Info"+info);
         if (info.Character.Uuid != this.info.Character.Uuid)
         {
             //Change Character
-            Debug.Log("Update player Info");
+            
+        }
+        if (info.IsReady != this.info.IsReady)
+        {
+            if (info.IsReady)
+            {
+                p.Play();
+            } else
+            {
+                p.Stop();
+            }   
         }
         this.info = info;
-        
+        var color = info.Character.Color;
+        Character.GetComponent<Entity>().m_appearance.SetupAllColor(new Color32 {r=(byte)color.R,b= (byte)color.B,g= (byte)color.G });
     }
+
+    
 }

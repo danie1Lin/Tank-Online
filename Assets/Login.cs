@@ -16,14 +16,22 @@ public class Login : MonoBehaviour {
 	public string password;
 
 	void Start () {
-		LoginButton.onClick.AddListener (LoginClick);
-		RegisterButton.onClick.AddListener (RegistClick);
-        agentServer = Gm.agentServer;
+		
+        LoginButton.interactable = false;
+        RegisterButton.interactable = false;
 		//password = "";
 	}
-	
-	// Update is called once per frame
-	void Update () {
+
+    public void Enable()
+    {
+        agentServer = AgentRpc.instance;
+        LoginButton.interactable = true;
+        RegisterButton.interactable = true;
+        LoginButton.onClick.AddListener(LoginClick);
+        RegisterButton.onClick.AddListener(RegistClick);
+    }
+    // Update is called once per frame
+    void Update () {
 	}
 
 	public void LoginClick(){
@@ -32,6 +40,7 @@ public class Login : MonoBehaviour {
 		var userInfo = agentServer.Login (u, pswd);
         if( userInfo != null ){
             Gm.IsLogin = true;
+            Gm.m_UserInfo = userInfo;
         }
 	}
 	public void RegistClick(){

@@ -23,41 +23,37 @@ public class Room {
 }
 public class GameManager : MonoBehaviour
 {
-    const string agentServeAddr = "35.201.150.218:8080";
+    public static GameManager instance;
+
+    const string agentServeAddr = "35.201.150.218:50051";
 
     //Object
     public CameraControl m_CameraControl;
-	public List<GameObject> m_entityPrefablist;
-	public Dictionary<string,GameObject> m_entityPrefab;
-	public EntityManager mainPlayer;
-    public List<EntityManager> m_Players;
+
     public Canvas RoomPrepareCanvas;
     public RoomPrepare roomPrepare;
     //View
     public GameObject LoginPanel;
-	public GameObject DebugPanel;
 	public Canvas RoomCanvas;
 	public Canvas IndexCanvas;
     public Canvas GamePlayCanvas;
-
+    
     //Rpc
     public AgentRpc agentServer;
     public GameRpc gameServer;
 	//Game State
 	public bool IsLogin ;
-	public bool IsRoomStart;
+    public bool IsRoomEnter;
+    public bool IsRoomStart;
 	public bool IsRoomEnd;
 	public bool	IsPlayerCreated;
+    
     public Joystick m_joystick;
 
 	//player's info
 	public UserInfo m_UserInfo;
 	public RoomInfo m_RoomInfo;
-	public Character m_EntityManagerInfo;
-	private Dictionary<long,UserInfo> IdMapUserInfo;
-	private MemberInfo type;
-	private Dictionary<long,Room> IdMapRoom; 
-	private Dictionary<long,EntityManager> IdMapEntityManager;
+
 
 
     private int m_RoundNumber;              
@@ -76,60 +72,34 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
+        
         //gameServer.Stop();
         agentServer.Stop();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
-	/// <summary>
-	/// Adds the out func queue.
-	/// </summary>
-	/// <returns>The out func queue.</returns>
-	/// <param name="f">F.</param>
+    /// <summary>
+    /// Adds the out func queue.
+    /// </summary>
+    /// <returns>The out func queue.</returns>
+    /// <param name="f">F.</param>
 
     private void Awake()
     {
+        instance = this;
+    }
+    private void Start()
+    {
+        //DontDestroyOnLoad(this.gameObject);
+        
         m_joystick.enabled = true;
 
-		m_Players = new List<EntityManager> ();
-		m_entityPrefab = new Dictionary<string, GameObject> ();
-		t_entityInfo = new Character ();
-		IdMapUserInfo = new Dictionary<long,UserInfo> ();
-
-		IdMapEntityManager = new Dictionary<long,EntityManager> ();
-		//GameObj
-
-		//Reflection
-		type = typeof(GameManager);
-
-		//
-		foreach (var x in m_entityPrefablist) {
-			m_entityPrefab.Add (x.name, x);
-		}
-		Debug.Log ("Prefab :"+m_entityPrefab);
-        agentServer = new AgentRpc(agentServeAddr);
-        selectRoomCanvas = RoomCanvas.GetComponent<SelectRoom>();
-        selectRoomCanvas.agent = agentServer;
-        RoomMaster = RoomCanvas.GetComponentInChildren<RoomManager>();
-        RoomMaster.agent = agentServer;
-        roomPrepare.agent = agentServer;
-        //state
-        IsLogin = false;
-		IsRoomStart = false;
-		IsRoomEnd = false;
-		IsPlayerCreated = false;
-		//
-		RoomCanvas.enabled = false;
-		IndexCanvas.enabled = true;
+        //GameObj
+        RoomCanvas.enabled = false;
+        IndexCanvas.enabled = true;
         GamePlayCanvas.enabled = false;
+        RoomPrepareCanvas.enabled = false;
 
-		DebugPanel.SetActive (false);
-		m_UserInfo = null;
-		m_EntityManagerInfo = null;
-
-		StartCoroutine(GameLoop());
-
-
-        
+        StartCoroutine(GameLoop());
     }
 
     private void Update()
@@ -147,11 +117,10 @@ public class GameManager : MonoBehaviour
 		if (isLocalPlayer && m_UserInfo == null) {
 			m_UserInfo = userInfo;
 		}
-		IdMapUserInfo.Add (userInfo.Uuid, userInfo);
 		Debug.Log ("[m_UserInfo]"+m_UserInfo);
 	}
 
-    private void SetCameraTargets()
+    /*private void SetCameraTargets()
     {
 		for (int i = 0; i < m_Players.Count; i++)
         {
@@ -160,6 +129,45 @@ public class GameManager : MonoBehaviour
 		Debug.Log ("[SetCameraTargets]"+ m_CameraControl.m_Targets);
    
     }
+    */
+    private IEnumerator ConnectingAgnet()
+    {
+        var ReconnectFreq = new WaitForSeconds(0.01f);
+        while (agentServer == null)
+        {
+            try
+            {
+                agentServer = new AgentRpc(agentServeAddr);
+            }
+            catch (RpcException e)
+            {
+                Debug.Log("Reconnecting");
+            }
+            yield return ReconnectFreq;
+        
+        }
+
+        LoginPanel.GetComponent<Login>().Enable();
+        RoomMaster = RoomCanvas.GetComponentInChildren<RoomManager>();
+        RoomMaster.agent = agentServer;
+        
+        roomPrepare.agent = agentServer;
+        agentServer.RoomContentQueue = roomPrepare.RoomContentQueue;
+        selectRoomCanvas = RoomCanvas.GetComponent<SelectRoom>();
+        selectRoomCanvas.agent = agentServer;
+        agentServer.RoomListQueue = selectRoomCanvas.RoomListQueue;
+        //state
+        IsLogin = false;
+        IsRoomStart = false;
+        IsRoomEnd = false;
+        IsPlayerCreated = false;
+        IsRoomEnter = false;
+        //
+
+        m_UserInfo = null;
+
+    }
+
 	private IEnumerator Login(){
 		//wait login suceed	
 		LoginPanel.SetActive(true);
@@ -180,21 +188,35 @@ public class GameManager : MonoBehaviour
 	private IEnumerator ChooseRoom(){
 		RoomCanvas.enabled = true;
         var t = new WaitForSeconds(1);
-        while ( ! IsRoomStart ) {
+        while ( ! IsRoomEnter ) {
             yield return t;
 		}
 		RoomCanvas.enabled = false;
         GamePlayCanvas.enabled = true;
     }
-	/// <summary>
-	/// Main Loop
-	/// </summary>
-	/// <returns>The loop.</returns>
+    private IEnumerator RoomPreparing()
+    {
+        RoomPrepareCanvas.enabled = true;
+        while (!IsRoomStart)
+        {
+            yield return null;
+        }
+        roomPrepare.Clean();
+        RoomPrepareCanvas.enabled = false;
+    }
+
+    /// <summary>
+    /// Main Loop   
+    /// </summary>
+    /// <returns>The loop.</returns>
     private IEnumerator GameLoop()
     {
-		yield return StartCoroutine(Login());
+        yield return StartCoroutine(ConnectingAgnet());
+        yield return StartCoroutine(Login());
 		yield return StartCoroutine (ChooseRoom ());
+        yield return StartCoroutine(RoomPreparing());
         yield return StartCoroutine(RoundStarting());
+        
         yield return StartCoroutine(RoundPlaying());
 
         if (m_GameWinner != null)
@@ -210,16 +232,24 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator RoundStarting()
     {
-		while (!IsPlayerCreated) {
-
+        //SceneManager.LoadScene("Gameplay-01");
+        GameRpc.instance.TimeCalibrate();
+        //GameRpc.instance.TimeCalibrate();
+        
+        GameRpc.instance.InputQ = EntityManager.instance.InputQ;
+        GameRpc.instance.GameFrameQ = EntityManager.instance.gameFrameQ ;
+        EntityManager.instance.enabled = true;
+        GameRpc.instance.GetGameFrame();
+        GameRpc.instance.Input();
+        
+        while (!IsPlayerCreated) {
 			yield return null;
 		}
-		SetCameraTargets();
-		ResetAllTanks ();
+		//SetCameraTargets();
+		//ResetAllTanks ();
 		m_CameraControl.SetStartPositionAndSize ();
         
     }
-
 
     private IEnumerator RoundPlaying()
     {
@@ -228,140 +258,17 @@ public class GameManager : MonoBehaviour
 		}
     }
 
-
     private IEnumerator RoundEnding()
     {
 
         yield return m_EndWait;
     }
-		
-
-    private void ResetAllTanks()
-    {
-        for (int i = 0; i < m_Players.Count; i++)
-        {
-            m_Players[i].Reset();
-        }
-    }
 
 	void OnApplicationQuit() {
 		Debug.Log ("Exit !");
+        if (agentServer != null)
 		agentServer.Stop();
-
+        if (gameServer != null)
+        gameServer.Stop();
 	}
-    /*
-	public void CallMathod (CallFuncInfo fInfo){
-		System.Type type = this.GetType ();
-		MethodInfo f = type.GetMethod (fInfo.Func);
-		object[] param = new object[]{ fInfo };
-		f.Invoke (this, param);
-	}
-
-	public void AddRoomInfo (CallFuncInfo f){
-		Debug.Log ("[AddRoomInfo execute]: "+f);
-		var roomInfo = f.Param [0].Unpack<RoomInfo> ();
-
-		Debug.Log (roomInfo);
-		selectRoomCanvas.addRoomQueue.Enqueue (roomInfo);
-	}
-
-	public void GetMyRoom(CallFuncInfo f){
-		Debug.Log ("[GetMyRoom execute]: "+f);
-		var roomInfo = f.Param[0].Unpack<RoomInfo> ();
-		Debug.Log (roomInfo);
-
-	}
-
-	public void GetAllRoomInfo(CallFuncInfo f) {
-		Debug.Log ("[GetMyRoom execute]: "+f);
-		foreach (var param in f.Param) {
-			var roomInfo = param.Unpack<RoomInfo> ();
-			Debug.Log ("[Get Room]" + roomInfo);
-			selectRoomCanvas.addRoomQueue.Enqueue (roomInfo);
-		}
-	}
-	public void EnterRoom(CallFuncInfo f){
-		Debug.Log ("[EnterRoom execute]: "+f);
-		var roomInfo = f.Param [0].Unpack<RoomInfo> ();
-		selectRoomCanvas.Enter(roomInfo);
-	}
-
-    public void LeaveRoom(CallFuncInfo f)
-    {
-        Debug.Log("[LeaveRoom execute]: " + f);
-        selectRoomCanvas.Leave(f.TargetId);
-    }
-
-    public void StartRoom(CallFuncInfo f){
-		Debug.Log ("[StartRoom execute]: "+f);
-		IsRoomStart = true;
-	}
-
-
-	public void CreateEntity(CallFuncInfo f){
-		Debug.Log ("[CreateEntityManager execute]: "+f);
-		CreateEntityManagerQueue.Enqueue (f);
-	}
-
-	public void CreateShell(CallFuncInfo f){
-		Debug.Log ("[CreateShell execute]: "+f);
-		CreateEntityManagerQueue.Enqueue (f);
-	}
-
-	public void DestroyEntity(CallFuncInfo f){
-        EntityManager entity;
-        if (IdMapEntityManager.TryGetValue(f.TargetId, out entity))
-        {
-            Debug.Log("[DestroyEntity execute]:" + f);
-            entity.Destroy();
-        }
-	}
-
-    public void Health(CallFuncInfo f)
-    {
-        Debug.Log("[Health execute]"+f);
-        var entity = IdMapEntityManager[f.TargetId];
-        entity.HealthQ.Enqueue(f.Value);
-    }
-
-    public void Calibrate(CallFuncInfo f)
-    {
-        
-        var ToServerTime = f.FromId - f.TargetId;
-        var ToClientTime = util.GetTimeStamp() - f.TimeStamp;
-        var timeOffset = (ToClientTime - ToServerTime) / 2;
-        util.TimeOffset = (Int64)(timeOffset);
-        var delay = (ToClientTime + ToServerTime) ;
-        Debug.Log("Calibrate offset: " + util.TimeOffset+" ms, Delay: "+ delay+" ms");
-    }
-
-	
-	
-	void destroyEntityManager(){
-		var t_entityInfo = new Character ();
-		if (DestroyEntityManagerQueue.TryDequeue (out t_entityInfo)) {
-			var t_entity = new EntityManager ();
-			IdMapEntityManager.TryGetValue (t_entityInfo, out t_entity);
-			IdMapEntityManager.Remove (t_entityInfo.Uuid);
-			switch (t_entityInfo.CharacterType) {
-			case "Shell":
-				Debug.Log ("Shell destory");
-				break;
-			case "Player":
-				m_Players.Remove(t_entity);
-				foreach (KeyValuePair<long,Character> item in m_UserInfo.OwnCharacter) {
-					if (item.Key == t_entityInfo.Uuid) {
-						mainPlayer = null;
-						IsPlayerCreated = false;
-						break;
-					}
-				}
-				break;
-			default:
-				Debug.Log("No such entity type "+t_entityInfo.CharacterType);
-				break;
-			}
-		}
-	}
-	*/
 }

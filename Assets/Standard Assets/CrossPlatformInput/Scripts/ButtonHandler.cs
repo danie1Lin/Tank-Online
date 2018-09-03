@@ -7,7 +7,9 @@ namespace UnityStandardAssets.CrossPlatformInput
     {
 
         public string Name;
-
+        public float AccumuteValue;
+        public Vector3 vector;
+        private bool isPressed;
         void OnEnable()
         {
 
@@ -16,15 +18,15 @@ namespace UnityStandardAssets.CrossPlatformInput
         public void SetDownState()
         {
             CrossPlatformInputManager.SetButtonDown(Name);
+            AccumuteValue = Time.time;
         }
 
 
         public void SetUpState()
         {
-            CrossPlatformInputManager.SetButtonUp(Name);
+            AccumuteValue = Time.time - AccumuteValue;
+            CrossPlatformInputManager.SetAxis(Name, AccumuteValue);
         }
-
-
         public void SetAxisPositiveState()
         {
             CrossPlatformInputManager.SetAxisPositive(Name);
@@ -42,6 +44,10 @@ namespace UnityStandardAssets.CrossPlatformInput
             CrossPlatformInputManager.SetAxisNegative(Name);
         }
 
+        public void Dragging()
+        {
+
+        }
         public void Update()
         {
 
