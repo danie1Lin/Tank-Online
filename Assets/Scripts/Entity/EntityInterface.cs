@@ -188,7 +188,8 @@ public abstract class InteractionAcceptor : MonoBehaviour
     public void Accept(Msg.Interaction interact)
     {
         //接收自其他客戶端
-        
+        if (entity.IsSyncToServer)
+        {
             switch (interact.Type)
             {
                 case "Harm":
@@ -206,7 +207,12 @@ public abstract class InteractionAcceptor : MonoBehaviour
                     break;
 
             }
-        
+        }
+        else
+        {
+            interact.ToEntityId = gameObject.GetComponent<Entity>().state.Uuid;
+            EntityManager.instance.t_Input.Interaction.Add(interact.Clone());
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -216,6 +222,7 @@ public abstract class InteractionAcceptor : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        /*
         if (entity.IsSyncToServer) //To Server
         {
             if (collision.collider.gameObject.layer == LayerMask.NameToLayer("Applyer") && collision.collider.gameObject.GetComponent<Entity>().IsSyncToServer)
@@ -238,6 +245,7 @@ public abstract class InteractionAcceptor : MonoBehaviour
                 EntityManager.instance.t_Input.Interaction.Add(interaction.Clone());
             }
         }
+        */
     }
     public virtual void Harm(Msg.Interaction interact)
     {
@@ -304,14 +312,26 @@ public abstract class InteractionApplyer : MonoBehaviour
     private void OnCollisionEnter(Collision collision)
     {
         Debug.Log("OnCollisionEnter");
-        
+        var colliders = Physics.OverlapSphere(transform.position, 5f);
+        foreach (var collider in colliders)
+        {
+            if (collider.gameObject.layer == LayerMask.NameToLayer("Players"))
+            {
+                var interaction = Collide(collider.gameObject);
+                if (interaction == null) continue;
+                collider.GetComponent<Entity>().m_acceptor.Accept(interaction);
+
+                Rigidbody rb = collider.GetComponent<Rigidbody>();
+                rb.AddExplosionForce(1000F, transform.position, 50, 300.0F);
+            }
+        }
         DestroyOnCollide();
         //Destroy(gameObject);
     }
 
     private void DestroyOnCollide()
     {
-      
+        EntityManager.instance.DestoryEntityByClient(GetComponent<Entity>().state.Uuid);
     }
 }
 

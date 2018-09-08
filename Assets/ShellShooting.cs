@@ -19,16 +19,17 @@ public class ShellShooting : AttackBase {
     }
     public override void Attack(float Value, Vector3 vector)
     {
-    shellCharacter = new Msg.Character
-    {
-        Color = gameObject.GetComponent<Entity>().character.Color
-    };
-    if (Value > m_MaxSpeed) Value = m_MaxSpeed;
+        shellCharacter = new Msg.Character
+        {
+            Color = gameObject.GetComponent<Entity>().character.Color
+        };
+        if (Value > m_MaxSpeed) Value = m_MaxSpeed;
         var s = Value * m_timeToSpeed;
         if (s < m_MinSpeed) s = m_MinSpeed;
         base.Attack(s,vector);
         var v = gameObject.transform.forward * s;
-        var p = gameObject.transform.position + m_LaunchOffset;
+        
+        var p = transform.TransformPoint(m_LaunchOffset);
         var q = gameObject.transform.rotation;
         shellState.Speed = new Msg.Vector3 {X=v.x,Y=v.y,Z=v.z };
         shellState.Transform = new Msg.Transform

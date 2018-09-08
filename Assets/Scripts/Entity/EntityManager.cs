@@ -24,6 +24,7 @@ public class EntityManager:MonoBehaviour{
     public GameObject[] m_prefabs;
     public Dictionary<string,int> prefabsNameList;
     public Dictionary<long,bool> UsableId;
+    public long usableIdReader;
     public Entity MainCharacter;
     public List<long> SyncIdList;
     public List<long> DestoryIdList;
@@ -44,6 +45,7 @@ public class EntityManager:MonoBehaviour{
         }
         enabled = false;
         UsableId = new Dictionary<long, bool>();
+        usableIdReader = 1;
         for (int a = 1; a < 100; a++)
         {
             UsableId.Add(a,true);
@@ -55,15 +57,15 @@ public class EntityManager:MonoBehaviour{
 
     long GetUsableId()
     {
-        foreach (var id in UsableId)
+        long id;
+        if (UsableId[usableIdReader])
         {
-            if (id.Value)
-            {
-                UsableId[id.Key] = false;
-                Debug.Log("GetUsableId");
-                return id.Key;
-            }
+            id = usableIdReader;
+            usableIdReader++;
+            if (usableIdReader > UsableId.Count) usableIdReader = 1;
+            return id;
         }
+        
         return 0;
     }
 
