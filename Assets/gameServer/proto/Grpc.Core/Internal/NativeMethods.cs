@@ -41,9 +41,42 @@ namespace Grpc.Core.Internal
         // Signatures of native methods are generated from a template
         // and can be found in NativeMethods.Generated.cs
 
+#if UNITY_EDITOR               
+    private const string pluginName = "grpc_csharp_ext";            
+#elif UNITY_IOS || UNITY_TVOS || UNITY_WEBGL
+    public const string pluginName = "__Internal";          
+#else
+    public const string pluginName = "grpc_csharp_ext";             
+#endif
+
         /// <summary>
         /// Gets singleton instance of this class.
         /// </summary>
+        /// 
+        /// 
+        /// 
+        /*
+        static class NativeCalls {
+            [DllImport(pluginName)]
+            internal static extern void grpcsharp_int();
+
+            [DllImport(pluginName)]
+            internal static extern void grpcsharp_shutdown();
+
+        }
+
+        public NativeMethods(UnmanagedLibrary library)
+        {
+            #if UNITY_IOS
+                this.grpcsharp_init = NativeCalls.grpcsharp_init;
+                this.grpcsharp_shutdown = NativeCalls.grpcsharp_shutdown;
+                this.grpcsharp_version_string = NativeCalls.grpcsharp_version_string;
+            #endif
+
+        }
+        */
+
+
         public static NativeMethods Get()
         {
             return NativeExtension.Get().NativeMethods;
@@ -66,3 +99,4 @@ namespace Grpc.Core.Internal
         }
     }
 }
+

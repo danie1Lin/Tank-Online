@@ -79,6 +79,10 @@ namespace Grpc.Core.Internal
         /// </summary>
         private static UnmanagedLibrary LoadUnmanagedLibrary()
         {
+            #if UNITY_IOS
+                        return null;
+            #endif
+
             // TODO: allow customizing path to native extension (possibly through exposing a GrpcEnvironment property).
             // See https://github.com/grpc/grpc/pull/7303 for one option.
             var assemblyDirectory = Path.GetDirectoryName(GetAssemblyPath());
@@ -93,11 +97,15 @@ namespace Grpc.Core.Internal
             // by nuget. We locate the native libraries based on known structure of Grpc.Core nuget package.
             // When "dotnet publish" is used, the runtimes directory is copied next to the published assemblies.
             string runtimesDirectory = string.Format("runtimes/{0}/native", GetPlatformString());
+
             var netCorePublishedAppStylePath = Path.Combine(assemblyDirectory, runtimesDirectory, GetNativeLibraryFilename());
             var netCoreAppStylePath = Path.Combine(assemblyDirectory, "../..", runtimesDirectory, GetNativeLibraryFilename());
 
             // Look for the native library in all possible locations in given order.
-            string[] paths = new[] { classicPath, netCorePublishedAppStylePath, netCoreAppStylePath};
+            //string[] paths = new[] { classicPath, netCorePublishedAppStylePath, netCoreAppStylePath};
+
+            var unityPath = Path.Combine(assemblyDirectory, "../../Assets/Plugins/GrpcLib", runtimesDirectory, GetNativeLibraryFilename());
+            string[] paths = new[] { classicPath, netCorePublishedAppStylePath, netCoreAppStylePath, unityPath };
             return new UnmanagedLibrary(paths);
         }
 

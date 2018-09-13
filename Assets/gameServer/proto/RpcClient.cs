@@ -68,6 +68,7 @@ public class AgentRpc
     public ConcurrentQueue<RoomList> RoomListQueue;
     public ConcurrentQueue<HomeView> HomeViewQueue;
     public ConcurrentQueue<RoomContent> RoomContentQueue;
+    public Channel channel;
 
     public static bool ReconnectAgent()
     {
@@ -82,7 +83,7 @@ public class AgentRpc
         rpcStopSignal = new CancellationTokenSource();
         roomContentToken = new CancellationTokenSource();
         fixedUpdate = new unity.WaitForFixedUpdate();
-        var channel = new Channel(addr, ChannelCredentials.Insecure);
+        channel = new Channel(addr, ChannelCredentials.Insecure);
         client = new ClientToAgent.ClientToAgentClient(channel);
 
         metadata = new Metadata();
@@ -112,6 +113,7 @@ public class AgentRpc
         rpcStopSignal.Cancel();
         if (!roomContentToken.IsCancellationRequested) roomContentToken.Cancel();
         await GrpcEnvironment.ShutdownChannelsAsync();
+        await channel.ShutdownAsync();
     }
 
     /// <summary>
@@ -281,11 +283,13 @@ public class GameRpc
     private Metadata metadata;
     public ConcurrentQueue<Msg.Input> InputQ;
     public ConcurrentQueue<GameFrame> GameFrameQ;
+    public Channel channel;
+
 	public GameRpc(ServerInfo info,Metadata metadata)
 	{
 		rpcStopSignal = new CancellationTokenSource ();
         this.metadata = metadata;
-        var channel = new Channel(info.Addr+":8080" , ChannelCredentials.Insecure);
+        channel = new Channel(info.Addr+":8080" , ChannelCredentials.Insecure);
         this.client = new ClientToGame.ClientToGameClient(channel);
         instance = this;
 	}
@@ -361,6 +365,7 @@ public class GameRpc
     {
         rpcStopSignal.Cancel();
         await GrpcEnvironment.ShutdownChannelsAsync();
+        await channel.ShutdownAsync();
     }
     public bool HandleError(RpcException e)
     {
@@ -401,7 +406,7 @@ public class GameRpc
 
 public static class AsyncEnumerator
 {
-	public static Task<bool> MoveNext<T>(this IAsyncEnumerator<T> enumerator)
+	public static Task<bool> MoveNext<T>(this Grpc.Core.IAsyncEnumerator<T> enumerator)
 	{
 		if (enumerator == null) 
 			throw new ArgumentNullException (nameof (enumerator));

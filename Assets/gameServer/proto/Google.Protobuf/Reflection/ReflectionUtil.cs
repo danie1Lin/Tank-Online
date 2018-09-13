@@ -58,11 +58,18 @@ namespace Google.Protobuf.Reflection
         /// </summary>
         internal static Func<IMessage, object> CreateFuncIMessageObject(MethodInfo method)
         {
-            ParameterExpression parameter = Expression.Parameter(typeof(IMessage), "p");
-            Expression downcast = Expression.Convert(parameter, method.DeclaringType);
-            Expression call = Expression.Call(downcast, method);
-            Expression upcast = Expression.Convert(call, typeof(object));
-            return Expression.Lambda<Func<IMessage, object>>(upcast, parameter).Compile();
+            //ParameterExpression parameter = Expression.Parameter(typeof(IMessage), "p");
+            //Expression downcast = Expression.Convert(parameter, method.DeclaringType);
+            //Expression call = Expression.Call(downcast, method);
+            //Expression upcast = Expression.Convert(call, typeof(object));
+            //return Expression.Lambda<Func<IMessage, object>>(upcast, parameter).Compile();
+
+
+            return (IMessage message) =>
+            {
+                var returnValue = method.Invoke(message, null) as object;
+                return returnValue;
+            };
         }
 
         /// <summary>
@@ -71,11 +78,17 @@ namespace Google.Protobuf.Reflection
         /// </summary>
         internal static Func<IMessage, T> CreateFuncIMessageT<T>(MethodInfo method)
         {
-            ParameterExpression parameter = Expression.Parameter(typeof(IMessage), "p");
-            Expression downcast = Expression.Convert(parameter, method.DeclaringType);
-            Expression call = Expression.Call(downcast, method);
-            Expression upcast = Expression.Convert(call, typeof(T));
-            return Expression.Lambda<Func<IMessage, T>>(upcast, parameter).Compile();
+
+            //ParameterExpression parameter = Expression.Parameter(typeof(IMessage), "p");
+            //Expression downcast = Expression.Convert(parameter, method.DeclaringType);
+            //Expression call = Expression.Call(downcast, method);
+            //Expression upcast = Expression.Convert(call, typeof(T));
+            //return Expression.Lambda<Func<IMessage, T>>(upcast, parameter).Compile();
+            return (IMessage message) =>
+            {
+                var returnValue = (T)method.Invoke(message, null);
+                return returnValue;
+            };
         }
 
         /// <summary>
@@ -84,12 +97,17 @@ namespace Google.Protobuf.Reflection
         /// </summary>
         internal static Action<IMessage, object> CreateActionIMessageObject(MethodInfo method)
         {
-            ParameterExpression targetParameter = Expression.Parameter(typeof(IMessage), "target");
-            ParameterExpression argParameter = Expression.Parameter(typeof(object), "arg");
-            Expression castTarget = Expression.Convert(targetParameter, method.DeclaringType);
-            Expression castArgument = Expression.Convert(argParameter, method.GetParameters()[0].ParameterType);
-            Expression call = Expression.Call(castTarget, method, castArgument);
-            return Expression.Lambda<Action<IMessage, object>>(call, targetParameter, argParameter).Compile();
+            //ParameterExpression targetParameter = Expression.Parameter(typeof(IMessage), "target");
+            //ParameterExpression argParameter = Expression.Parameter(typeof(object), "arg");
+            //Expression castTarget = Expression.Convert(targetParameter, method.DeclaringType);
+            //Expression castArgument = Expression.Convert(argParameter, method.GetParameters()[0].ParameterType);
+            //Expression call = Expression.Call(castTarget, method, castArgument);
+            //return Expression.Lambda<Action<IMessage, object>>(call, targetParameter, argParameter).Compile();
+
+            return (IMessage arg1, object arg2) =>
+            {
+                method.Invoke(arg1, new object[] { arg2 });
+            };
         }
 
         /// <summary>
@@ -98,10 +116,14 @@ namespace Google.Protobuf.Reflection
         /// </summary>
         internal static Action<IMessage> CreateActionIMessage(MethodInfo method)
         {
-            ParameterExpression targetParameter = Expression.Parameter(typeof(IMessage), "target");
-            Expression castTarget = Expression.Convert(targetParameter, method.DeclaringType);
-            Expression call = Expression.Call(castTarget, method);
-            return Expression.Lambda<Action<IMessage>>(call, targetParameter).Compile();
+            //ParameterExpression targetParameter = Expression.Parameter(typeof(IMessage), "target");
+            //Expression castTarget = Expression.Convert(targetParameter, method.DeclaringType);
+            //Expression call = Expression.Call(castTarget, method);
+            //return Expression.Lambda<Action<IMessage>>(call, targetParameter).Compile();
+            return (IMessage obj) =>
+            {
+                method.Invoke(obj, null);
+            };
         }        
     }
 }

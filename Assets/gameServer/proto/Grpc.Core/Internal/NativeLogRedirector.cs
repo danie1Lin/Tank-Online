@@ -51,6 +51,8 @@ namespace Grpc.Core.Internal
             }
         }
 
+
+        [AOT.MonoPInvokeCallback(typeof(GprLogDelegate))]
         private static void HandleWrite(IntPtr fileStringPtr, int line, ulong threadId, IntPtr severityStringPtr, IntPtr msgPtr)
         {
             try
@@ -82,7 +84,12 @@ namespace Grpc.Core.Internal
             }
             catch (Exception e)
             {
-                Console.WriteLine("Caught exception in native callback " + e);
+                //Console.WriteLine("Caught exception in native callback " + e);
+                #if UNITY_METRO
+                    UnityEngine.Debug.Log("Caught exception in native callback " + e);
+                #else
+                    Console.WriteLine("Caught exception in native callback " + e);
+                #endif
             }
         }
     }
