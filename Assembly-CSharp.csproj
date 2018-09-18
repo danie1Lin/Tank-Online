@@ -70,6 +70,7 @@
     <Compile Include="Assets\_Completed-Assets\Scripts\UI\UIDirectionControl.cs" />
     <Compile Include="Assets\CharacterAppearance.cs" />
     <Compile Include="Assets\ConsoleToGUI.cs" />
+    <Compile Include="Assets\DataLoader.cs" />
     <Compile Include="Assets\EntityAcceptor.cs" />
     <Compile Include="Assets\FlexibleUISystems\FlexibleDraggableObject\Scripts\FlexibleDraggableObject.cs" />
     <Compile Include="Assets\FlexibleUISystems\FlexibleDraggableObject\Scripts\FlexibleResizeHandler.cs" />

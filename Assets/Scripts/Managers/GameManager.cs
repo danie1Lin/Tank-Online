@@ -38,25 +38,28 @@ public class GameManager : MonoBehaviour
 	public Canvas RoomCanvas;
 	public Canvas IndexCanvas;
     public Canvas GamePlayCanvas;
-    public string SessionId;
+
+    public Joystick m_joystick;
     //Rpc
     public AgentRpc agentServer;
     public GameRpc gameServer;
-	//Game State
+	//Game Event
 	public bool IsLogin ;
     public bool IsRoomEnter;
     public bool IsRoomStart;
 	public bool IsRoomEnd;
 	public bool	IsPlayerCreated;
-    
+    //State Swith
     public int gameState;
 
-    public Joystick m_joystick;
 
-	//player's info
+
+	//player's info [Should Save]
 	public UserInfo m_UserInfo;
 	public RoomInfo m_RoomInfo;
-
+    public string SessionId;
+    public Msg.ServerInfo gameServerInfo;
+    public Metadata metadata;
 
 
     private int m_RoundNumber;              
@@ -67,8 +70,7 @@ public class GameManager : MonoBehaviour
 	private SelectRoom selectRoomCanvas;
     private RoomManager RoomMaster;
     private Msg.Position m_pos;
-    public Msg.ServerInfo gameServerInfo;
-    public Metadata metadata;
+
 
 	private UnityEngine.Quaternion m_q;
 	private UnityEngine.Vector3 m_p;
@@ -99,6 +101,8 @@ public class GameManager : MonoBehaviour
         //DontDestroyOnLoad(this.gameObject);
         gameState = 0;
         SessionId = "";
+
+        metadata = new Metadata();
         var cookie = LoadCookie();
         if (VerifyCookie(cookie))
         {
@@ -107,19 +111,18 @@ public class GameManager : MonoBehaviour
             string uname;
             if (m_UserInfo == null) uname = "";
             else uname = m_UserInfo.UserName;
-            metadata = new Metadata();
+
             metadata.Add("session-id", SessionId);
             metadata.Add("uname", uname);
         }
 
         m_joystick.enabled = true;
-
-        //GameObj
         RoomCanvas.enabled = false;
         IndexCanvas.enabled = false;
         GamePlayCanvas.enabled = false;
         RoomPrepareCanvas.enabled = false;
         EntityManager.instance.enabled = false;
+
         StartCoroutine(GameLoop());
     }
 
@@ -150,26 +153,20 @@ public class GameManager : MonoBehaviour
     */
 
     #region GameLoop
-    private IEnumerator ConnectingAgnet()
+    private void ConnectingAgnet()
     {
-        var ReconnectFreq = new WaitForSeconds(0.01f);
-        while (agentServer == null)
-        {
-            try
-            {
-                string uname; 
-                if (m_UserInfo == null) uname = "";
-                else uname = m_UserInfo.UserName;
-                agentServer = new AgentRpc(agentServeAddr);
-                agentServer.GetSession(uname, SessionId);
-            }
-            catch (RpcException e)
-            {
-                Debug.Log("Reconnecting");
-            }
-            yield return ReconnectFreq;
+        agentServer = new AgentRpc(agentServeAddr);
+
+        agentServer.ConnectServer();
+
+        string uname; 
+        if (m_UserInfo == null) uname = "";
+        else uname = m_UserInfo.UserName;
+
+        agentServer.GetSession(uname, SessionId);
         
-        }
+        
+
 
         LoginPanel.GetComponent<Login>().Enable();
         RoomMaster = RoomCanvas.GetComponentInChildren<RoomManager>();
@@ -247,7 +244,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator RoundStarting()
     {
-        AgentRpc.instance.roomContentToken.Cancel();
+        if (AgentRpc.instance != null) AgentRpc.instance.roomContentToken.Cancel();
         RoomCanvas.enabled = false;
         IndexCanvas.enabled = false;
         GamePlayCanvas.enabled = true;
@@ -259,8 +256,9 @@ public class GameManager : MonoBehaviour
             yield return null;
         }
 
-        GameManager.instance.gameServer = new GameRpc(gameServerInfo, metadata);
-        
+        gameServer = new GameRpc(gameServerInfo, metadata);
+        gameServer.ConnectServer();
+
         GameRpc.instance.TimeCalibrate();
         GameRpc.instance.InputQ = EntityManager.instance.InputQ;
         GameRpc.instance.GameFrameQ = EntityManager.instance.gameFrameQ;
@@ -301,7 +299,8 @@ public class GameManager : MonoBehaviour
         switch (gameState)
         {
             case 0:
-                yield return StartCoroutine(ConnectingAgnet());
+                ConnectingAgnet();
+                yield return null;
                 break;
             case 1:
                 yield return StartCoroutine(Login());
@@ -333,6 +332,7 @@ public class GameManager : MonoBehaviour
         SessionId = "";
         gameServerInfo = null;
         gameState = 0;
+        SaveCookie();
     }
     public void RestartGameLoop()
     {
