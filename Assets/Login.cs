@@ -14,6 +14,8 @@ public class Login : MonoBehaviour {
     public AgentRpc agentServer;
 	// Use this for initialization
 	public string password;
+    //public event 
+
 
 	void Start () {
 		

@@ -284,6 +284,7 @@
     <Compile Include="Assets\HSVPicker\UtilityScripts\BoxSlider.cs" />
     <Compile Include="Assets\HSVPicker\UtilityScripts\HSVUtil.cs" />
     <Compile Include="Assets\Login.cs" />
+    <Compile Include="Assets\LoginState.cs" />
     <Compile Include="Assets\NoAcceptor.cs" />
     <Compile Include="Assets\NoApplyer.cs" />
     <Compile Include="Assets\PickerPop.cs" />
@@ -332,6 +333,7 @@
     <Compile Include="Assets\PostProcessing\Runtime\Utils\GraphicsUtils.cs" />
     <Compile Include="Assets\PostProcessing\Runtime\Utils\MaterialFactory.cs" />
     <Compile Include="Assets\PostProcessing\Runtime\Utils\RenderTextureFactory.cs" />
+    <Compile Include="Assets\PreStartGame.cs" />
     <Compile Include="Assets\ResizeButton.cs" />
     <Compile Include="Assets\RoomManager.cs" />
     <Compile Include="Assets\RoomPrepare.cs" />
@@ -354,6 +356,7 @@
     <Compile Include="Assets\ShellFlying.cs" />
     <Compile Include="Assets\ShellHealth.cs" />
     <Compile Include="Assets\ShellShooting.cs" />
+    <Compile Include="Assets\StateBase.cs" />
     <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
     <None Include="Assets\PostProcessing\Resources\Shaders\DepthOfField.shader" />
     <None Include="Assets\PostProcessing\Resources\Shaders\MotionBlur.cginc" />

@@ -69,11 +69,13 @@ public class AgentRpc
     public ConcurrentQueue<HomeView> HomeViewQueue;
     public ConcurrentQueue<RoomContent> RoomContentQueue;
     public Channel channel;
+    public GameManager GM;
 
     public static bool ReconnectAgent()
     {
         instance.Stop();
         new AgentRpc(AgentRpc.instance.Addr);
+
         return true;
     }
 
@@ -85,6 +87,7 @@ public class AgentRpc
         roomContentToken = new CancellationTokenSource();
         metadata = new Metadata();
         instance = this;
+        GM = GameManager.Instance;
     }
 
     public bool ConnectServer(){
@@ -118,7 +121,7 @@ public class AgentRpc
 
                 var sessionkey = client.AquireSessionKey(new Empty(), cancellationToken: rpcStopSignal.Token);
                 unity.Debug.Log("GetNewSession" + sessionkey.Value);
-                GameManager.instance.SessionId = sessionkey.Value;
+                GM.SessionId = sessionkey.Value;
                 metadata.Add("session-id", sessionkey.Value);
             }
             catch (RpcException e) {
@@ -258,13 +261,13 @@ public class AgentRpc
     {
         unity.Debug.Log("Acquiring");
         var serverInfo = await client.AquireGameServerAsync(new Empty(), metadata);
-        GameManager.instance.IsRoomStart = true;
+        GM.IsRoomStart = true;
         if (serverInfo != null)
         {
             //unity.Debug.Log(serverInfo);
-            GameManager.instance.gameServerInfo = serverInfo;
-            GameManager.instance.metadata = metadata;
-            GameManager.instance.IsRoomStart = true;
+            GM.gameServerInfo = serverInfo;
+            GM.metadata = metadata;
+            GM.IsRoomStart = true;
         }
         
     }
@@ -276,8 +279,8 @@ public class AgentRpc
         {
             case StatusCode.NotFound:
                 //Session Not Found, require session key again
-                GameManager.instance.ResetCookie();
-                GameManager.instance.RestartGameLoop();
+                //GM.ResetCookie();
+                //GM.RestartGameLoop();
                 return false;
                 break;
             case StatusCode.Internal:
@@ -301,7 +304,7 @@ public class AgentRpc
             case StatusCode.Cancelled:
             default:
                 unity.Debug.Log("Server is dead");
-                GameManager.instance.RestartGame();
+                //GM.RestartGame();
                 break;
         }
         return true;
@@ -322,13 +325,14 @@ public class GameRpc
     public ConcurrentQueue<GameFrame> GameFrameQ;
     public Channel channel;
     private ServerInfo info;
-
+    public GameManager GM;
 
 	public GameRpc(ServerInfo info,Metadata metadata)
 	{
 		rpcStopSignal = new CancellationTokenSource ();
         this.metadata = metadata;
         this.info = info;
+        GM = GameManager.Instance;
         instance = this;
 	}
 
@@ -423,8 +427,8 @@ public class GameRpc
         {
             case StatusCode.NotFound:
                 //Session Not Found, require session key again
-                GameManager.instance.ResetCookie();
-                GameManager.instance.RestartGameLoop();
+                //GM.ResetCookie();
+                //GM.RestartGameLoop();
                 return false;
                 break;
             case StatusCode.Internal:
@@ -444,7 +448,7 @@ public class GameRpc
             case StatusCode.Cancelled:
             default:
                 unity.Debug.Log("Server is dead");
-                GameManager.instance.RestartGame();
+                //GM.RestartGame();
                 break;
         }
         return true;

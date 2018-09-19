@@ -19,13 +19,14 @@ using UnityStandardAssets.CrossPlatformInput;
 using System.IO;
 
 using Google.Protobuf;
-public class Room {
-	public RoomInfo m_roomInfo;
-}
+
+public enum GameState { PRESTART, LOGIN, MATCHING, ROOMP_REPARATION, GAMEPLAY };
+
+public delegate void OnStateLoadHandler();
+public delegate void OnStateNextHandler();
+
 public class GameManager : MonoBehaviour
 {
-    public static GameManager instance;
-
     const string agentServeAddr = "35.201.150.218:50051";
 
     //Object
@@ -34,9 +35,10 @@ public class GameManager : MonoBehaviour
     public Canvas RoomPrepareCanvas;
     public RoomPrepare roomPrepare;
     //View
+    public Canvas IndexCanvas;
     public GameObject LoginPanel;
-	public Canvas RoomCanvas;
-	public Canvas IndexCanvas;
+    public Canvas RoomCanvas;
+	
     public Canvas GamePlayCanvas;
 
     public Joystick m_joystick;
@@ -77,6 +79,35 @@ public class GameManager : MonoBehaviour
 
 	private Character t_entityInfo;
 
+    public GameState state;
+
+    protected GameManager(){
+
+    }
+
+    public static GameManager instance = null;
+
+    public event OnStateLoadHandler OnStateLoad;
+    public event OnStateNextHandler OnStateNext;
+
+    public string[] ScenceTitles;
+
+    public static GameManager Instance{
+        get {
+            return GameManager.instance;
+        }
+    }
+
+
+
+    public void SetGameState(GameState state){
+        if (OnStateNext != null) OnStateNext();
+        this.state = state;
+        if (OnStateLoad != null) OnStateLoad();
+    }
+
+
+
     public void RestartGame()
     {
 
@@ -95,17 +126,23 @@ public class GameManager : MonoBehaviour
     private void Awake()
     {
         instance = this;
+        DontDestroyOnLoad(this.gameObject);
+        metadata = new Metadata();
     }
+
+
+
     private void Start()
     {
-        //DontDestroyOnLoad(this.gameObject);
+        /*
         gameState = 0;
         SessionId = "";
 
-        metadata = new Metadata();
+
         var cookie = LoadCookie();
         if (VerifyCookie(cookie))
         {
+            //Use Chache in file
             gameState = cookie.Item1;
             SessionId = cookie.Item2;
             string uname;
@@ -124,14 +161,17 @@ public class GameManager : MonoBehaviour
         EntityManager.instance.enabled = false;
 
         StartCoroutine(GameLoop());
+        */
     }
 
     private void Update()
     {
+        /*
         if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
         {
             RestartGame();
         }
+        */
     }
 
 	public void SetUser(UserInfo userInfo, bool isLocalPlayer){
@@ -347,12 +387,9 @@ public class GameManager : MonoBehaviour
         if (gameServer != null)gameServer.Stop();
 	}
 
-    void SaveCookie()
+    public void SaveCookie()
     {
-        if (gameState < 3)
-        {
-            gameState = 0;
-        }
+
         using (var output = File.Create(Application.persistentDataPath + "/UserInfo.dat"))
         {
             if (m_UserInfo != null) m_UserInfo.WriteTo(output);
@@ -370,11 +407,11 @@ public class GameManager : MonoBehaviour
             
     } 
 
-    Tuple<int,string,string> LoadCookie()
+    public Tuple<int,string,string> LoadCookie()
     {
         if (!File.Exists(Application.persistentDataPath + "/UserInfo.dat"))
         {
-            
+
         }
         else
         {
@@ -402,7 +439,7 @@ public class GameManager : MonoBehaviour
         return new Tuple<int, string, string> (PlayerPrefs.GetInt("State", gameState), PlayerPrefs.GetString("SessionId", SessionId), PlayerPrefs.GetString("Time", DateTime.UtcNow.ToString()));
     }
 
-    bool VerifyCookie(Tuple<int, string, string> cookie)
+    public bool VerifyCookie(Tuple<int, string, string> cookie)
     {
         DateTime cookieTime;
         if (cookie == null) return false;
@@ -417,6 +454,8 @@ public class GameManager : MonoBehaviour
         {
             throw new Exception("Parse Cookie DateTime Error");
         }
+
+
         return false;
     }
 }
