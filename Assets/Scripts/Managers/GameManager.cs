@@ -20,68 +20,43 @@ using System.IO;
 
 using Google.Protobuf;
 
-public enum GameState { PRESTART, LOGIN, MATCHING, ROOMP_REPARATION, GAMEPLAY };
-
 public delegate void OnStateLoadHandler();
 public delegate void OnStateNextHandler();
 
 public class GameManager : MonoBehaviour
 {
-    const string agentServeAddr = "35.201.150.218:50051";
 
-    //Object
-    public CameraControl m_CameraControl;
-
-    public Canvas RoomPrepareCanvas;
-    public RoomPrepare roomPrepare;
-    //View
-    public Canvas IndexCanvas;
-    public GameObject LoginPanel;
-    public Canvas RoomCanvas;
-	
-    public Canvas GamePlayCanvas;
-
-    public Joystick m_joystick;
-    //Rpc
-    public AgentRpc agentServer;
-    public GameRpc gameServer;
-	//Game Event
-	public bool IsLogin ;
+    //Game Event
+    public bool IsLogin;
     public bool IsRoomEnter;
     public bool IsRoomStart;
-	public bool IsRoomEnd;
-	public bool	IsPlayerCreated;
+    public bool IsRoomEnd;
+    public bool IsPlayerCreated;
     //State Swith
-    public int gameState;
+    public String[] GamePlayName;
+    public String[] ScencePrefix;
 
 
 
-	//player's info [Should Save]
-	public UserInfo m_UserInfo;
-	public RoomInfo m_RoomInfo;
+    //player's info [Should Save]
+    public UserInfo m_UserInfo;
+    public RoomInfo m_RoomInfo;
     public string SessionId;
+    public string uname;
     public Msg.ServerInfo gameServerInfo;
     public Metadata metadata;
+    public Msg.SessionInfo.Types.SessionState gameState;
+    public SessionCache sessionCache;
 
 
-    private int m_RoundNumber;              
-    private WaitForSeconds m_StartWait;     
-    private WaitForSeconds m_EndWait;       
-    private EntityManager m_RoundWinner;
-    private EntityManager m_GameWinner;
-	private SelectRoom selectRoomCanvas;
-    private RoomManager RoomMaster;
+
     private Msg.Position m_pos;
+    private UnityEngine.Quaternion m_q;
+    private UnityEngine.Vector3 m_p;
+    private Character t_entityInfo;
 
-
-	private UnityEngine.Quaternion m_q;
-	private UnityEngine.Vector3 m_p;
-
-	private Character t_entityInfo;
-
-    public GameState state;
-
-    protected GameManager(){
+    protected GameManager()
+    {
 
     }
 
@@ -92,28 +67,52 @@ public class GameManager : MonoBehaviour
 
     public string[] ScenceTitles;
 
-    public static GameManager Instance{
-        get {
+    public static GameManager Instance
+    {
+        get
+        {
             return GameManager.instance;
         }
     }
 
 
 
-    public void SetGameState(GameState state){
-        if (OnStateNext != null) OnStateNext();
-        this.state = state;
+    public void SetGameState(Msg.SessionInfo.Types.SessionState state)
+    {
+
+        this.gameState = state;
         if (OnStateLoad != null) OnStateLoad();
     }
+    
+    public void ChangeScence(int sceneNum, string afterPrefix)
+    {
+        
+        if (OnStateNext != null) OnStateNext();
+
+        var prefix = ScencePrefix[sceneNum];
+        if (prefix.Contains("-"))
+        {
+            if (afterPrefix == "") afterPrefix = "Desert";
+        }
+        else
+        {
+            if (afterPrefix != "") throw new Exception("This scence can't add afterPrefix");
+        }
+
+        var thisSceneName = SceneManager.GetActiveScene().name;
+        var nextSceneName = prefix + afterPrefix;
 
 
+        if (nextSceneName != thisSceneName)
+            SceneManager.LoadScene(nextSceneName);
+    }
 
     public void RestartGame()
     {
 
         //gameServer.Stop();
-        if (agentServer != null) agentServer.Stop();
-        if (gameServer != null) gameServer.Stop();
+        AgentRpc.Instance.Stop();
+        GameRpc.Instance.Stop();
 
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
@@ -174,12 +173,14 @@ public class GameManager : MonoBehaviour
         */
     }
 
-	public void SetUser(UserInfo userInfo, bool isLocalPlayer){
-		if (isLocalPlayer && m_UserInfo == null) {
-			m_UserInfo = userInfo;
-		}
-		Debug.Log ("[m_UserInfo]"+m_UserInfo);
-	}
+    public void SetUser(UserInfo userInfo, bool isLocalPlayer)
+    {
+        if (isLocalPlayer && m_UserInfo == null)
+        {
+            m_UserInfo = userInfo;
+        }
+        Debug.Log("[m_UserInfo]" + m_UserInfo);
+    }
 
     /*private void SetCameraTargets()
     {
@@ -191,27 +192,27 @@ public class GameManager : MonoBehaviour
    
     }
     */
-
+    /* Move to mutiscence
     #region GameLoop
     private void ConnectingAgnet()
     {
-        agentServer = new AgentRpc(agentServeAddr);
+        agentServer = AgentRpc.Instance;
 
-        agentServer.ConnectServer();
+        agentServer.ConnectServer(agentServeAddr);
 
-        string uname; 
+        string uname;
         if (m_UserInfo == null) uname = "";
         else uname = m_UserInfo.UserName;
 
         agentServer.GetSession(uname, SessionId);
-        
-        
+
+
 
 
         LoginPanel.GetComponent<Login>().Enable();
         RoomMaster = RoomCanvas.GetComponentInChildren<RoomManager>();
         RoomMaster.agent = agentServer;
-        
+
         roomPrepare.agent = agentServer;
         agentServer.RoomContentQueue = roomPrepare.RoomContentQueue;
         selectRoomCanvas = RoomCanvas.GetComponent<SelectRoom>();
@@ -229,7 +230,8 @@ public class GameManager : MonoBehaviour
         gameState += 1;
     }
 
-	private IEnumerator Login(){
+    private IEnumerator Login()
+    {
         //wait login suceed	
         RoomCanvas.enabled = false;
         IndexCanvas.enabled = true;
@@ -238,35 +240,38 @@ public class GameManager : MonoBehaviour
         EntityManager.instance.enabled = false;
 
         LoginPanel.SetActive(true);
-		//
-		m_CameraControl.SetStartPositionAndSize ();
-		while ( ! IsLogin ) {
-			yield return null;
-		}
+        //
+        m_CameraControl.SetStartPositionAndSize();
+        while (!IsLogin)
+        {
+            yield return null;
+        }
         agentServer.UpdateRoomList();
         gameState += 1;
         //隱藏LoginPanel
     }
-	/// <summary>
-	/// Chooses the room.
-	/// </summary>
-	/// <returns>The room.</returns>
-	private IEnumerator ChooseRoom(){
-		RoomCanvas.enabled = true;
-        
+    /// <summary>
+    /// Chooses the room.
+    /// </summary>
+    /// <returns>The room.</returns>
+    private IEnumerator ChooseRoom()
+    {
+        RoomCanvas.enabled = true;
+
         IndexCanvas.enabled = false;
         GamePlayCanvas.enabled = false;
         RoomPrepareCanvas.enabled = false;
         EntityManager.instance.enabled = false;
         var t = new WaitForSeconds(1);
-        while ( ! IsRoomEnter ) {
+        while (!IsRoomEnter)
+        {
             yield return t;
-		}
+        }
         gameState += 1;
     }
     private IEnumerator RoomPreparing()
     {
-        
+
         RoomCanvas.enabled = false;
         IndexCanvas.enabled = false;
         GamePlayCanvas.enabled = false;
@@ -326,7 +331,7 @@ public class GameManager : MonoBehaviour
 
         while (!IsRoomEnd)
         {
-            yield return null;;
+            yield return null; ;
         }
         gameState = 2;
     }
@@ -365,7 +370,7 @@ public class GameManager : MonoBehaviour
     }
 
     #endregion GameLoop
-
+    */
     public void ResetCookie()
     {
         m_UserInfo = null;
@@ -374,76 +379,39 @@ public class GameManager : MonoBehaviour
         gameState = 0;
         SaveCookie();
     }
-    public void RestartGameLoop()
+
+    void OnApplicationQuit()
     {
-        StopAllCoroutines();
-        StartCoroutine(GameLoop());
+        Debug.Log("Exit !");
+        SaveCookie();
+        AgentRpc.Instance.Stop();
+        GameRpc.Instance.Stop();
     }
 
-    void OnApplicationQuit() {
-		Debug.Log ("Exit !");
-        SaveCookie();
-        if (agentServer != null)agentServer.Stop();
-        if (gameServer != null)gameServer.Stop();
-	}
 
+    #region Cookie
     public void SaveCookie()
     {
-
-        using (var output = File.Create(Application.persistentDataPath + "/UserInfo.dat"))
-        {
-            if (m_UserInfo != null) m_UserInfo.WriteTo(output);
-
-        }
-        using (var output = File.Create(Application.persistentDataPath + "/ServerInfo.dat"))
-        {
-            if(gameServerInfo != null) gameServerInfo.WriteTo(output);
-        }
-
-        PlayerPrefs.SetInt("State", gameState);
         PlayerPrefs.SetString("SessionId", SessionId);
-
+        PlayerPrefs.SetString("uname", uname);
         PlayerPrefs.SetString("Time", DateTime.UtcNow.ToString());
-            
-    } 
 
-    public Tuple<int,string,string> LoadCookie()
-    {
-        if (!File.Exists(Application.persistentDataPath + "/UserInfo.dat"))
-        {
-
-        }
-        else
-        {
-            using (var file = File.OpenRead(Application.persistentDataPath + "/UserInfo.dat"))
-            {
-                var userInfo = UserInfo.Parser.ParseFrom(file);
-                if (userInfo != null) m_UserInfo = userInfo;
-                //Debug.Log(m_UserInfo);
-            }
-        }
-
-        if (!File.Exists(Application.persistentDataPath + "/ServerInfo.dat"))
-        {
-
-        }
-        else
-        {
-            using (var file = File.OpenRead(Application.persistentDataPath+ "/ServerInfo.dat"))
-            {
-                var serverInfo = ServerInfo.Parser.ParseFrom(file);
-                if (serverInfo != null) gameServerInfo = serverInfo;
-                //Debug.Log(m_UserInfo);
-            }
-        }
-        return new Tuple<int, string, string> (PlayerPrefs.GetInt("State", gameState), PlayerPrefs.GetString("SessionId", SessionId), PlayerPrefs.GetString("Time", DateTime.UtcNow.ToString()));
     }
 
-    public bool VerifyCookie(Tuple<int, string, string> cookie)
+    public Tuple<string, string, string> LoadCookie()
     {
+        return new Tuple<string, string, string>(PlayerPrefs.GetString("SessionId", ""), PlayerPrefs.GetString("Time", ""),PlayerPrefs.GetString("uname",""));
+    }
+
+    public bool VerifyCookie(Tuple<string, string, string> cookie)
+    {
+        CleanAllCookies();
+        Debug.Log("cookie: "+ cookie );
+
         DateTime cookieTime;
+
         if (cookie == null) return false;
-        if (DateTime.TryParse(cookie.Item3,out cookieTime))
+        if (DateTime.TryParse(cookie.Item2, out cookieTime))
         {
             if (TimeSpan.FromMinutes(10) > (DateTime.UtcNow - cookieTime))
             {
@@ -452,10 +420,16 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            throw new Exception("Parse Cookie DateTime Error");
+            //throw new Exception("Parse Cookie DateTime Error");
         }
 
-
+       
         return false;
     }
+
+    public void CleanAllCookies(){
+        PlayerPrefs.DeleteAll();
+
+    }
+    #endregion Cookie
 }

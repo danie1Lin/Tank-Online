@@ -28,12 +28,11 @@ public class EntityManager:MonoBehaviour{
     public Entity MainCharacter;
     public List<long> SyncIdList;
     public List<long> DestoryIdList;
+    public CameraControl m_MainPlayerCamera;
     private void Awake()
     {
         instance = this;
-        gameFrameQ = new ConcurrentQueue<GameFrame>();
         gameFrameLagecy = new Queue<GameFrame>();
-        InputQ = new ConcurrentQueue<Msg.Input>();
         prefabsNameList = new Dictionary<string, int>();
         Entitys = new Dictionary<long, Entity>();
         var i = 0;
@@ -53,6 +52,10 @@ public class EntityManager:MonoBehaviour{
         SyncIdList = new List<long>();
         DestoryIdList = new List<long>();
         //SyncIdList.SetValue(1,0);
+    }
+
+    private void Start()
+    {
     }
 
     long GetUsableId()
@@ -117,6 +120,7 @@ public class EntityManager:MonoBehaviour{
                 t_Input.NewEntityCharacters.Add(character.Uuid,character);
                 entity.enabled = true;
                 entity.m_move.entity = entity;
+
                 /* Debug.Log("Create " + state.PrefabName);
                 var pos = new UnityEngine.Vector3 { x = state.Transform.Position.X, y = state.Transform.Position.Y, z = state.Transform.Position.Z };
                 var q = new UnityEngine.Quaternion { x = state.Transform.Rotation.X, y = state.Transform.Rotation.Y, z = state.Transform.Rotation.Z, w = state.Transform.Rotation.W };
@@ -154,10 +158,7 @@ public class EntityManager:MonoBehaviour{
 
     void OnEnable()
     {
-        gameRpc = GameRpc.instance;
-        gameRpc.GameFrameQ = gameFrameQ;
         t_Input = new Msg.Input();
-
         t_Input.TimeStamp = util.GetTimeStamp();
         
     }
@@ -285,6 +286,8 @@ public class EntityManager:MonoBehaviour{
             {
                 MainCharacter = entity;
                 SyncIdList.Add(state.Uuid);
+                m_MainPlayerCamera.enabled = true;
+
             }
             entity.SetAsMainPlayer(character.Uuid == GameManager.instance.m_UserInfo.UsedCharacter);
             entity.enabled = true;
@@ -316,5 +319,11 @@ public class EntityManager:MonoBehaviour{
     {
         var v = CrossPlatformInputManager.GetAxis(axisName);
         Skill(0, v, new UnityEngine.Vector3());
+    }
+
+    public void Jump(){
+
+            MainCharacter.m_move.Jump();
+        
     }
 }

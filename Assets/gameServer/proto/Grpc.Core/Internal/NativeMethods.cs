@@ -42,8 +42,8 @@ namespace Grpc.Core.Internal
         // and can be found in NativeMethods.Generated.cs
 
 #if UNITY_EDITOR               
-    private const string pluginName = "grpc_csharp_ext";            
-#elif UNITY_IOS || UNITY_TVOS || UNITY_WEBGL
+    private const string pluginName = "grpc_csharp_ext";
+#elif UNITY_IOS || UNITY_TVOS || UNITY_WEBGL || UNITY_ANDROID || ANDORID
     public const string pluginName = "__Internal";          
 #else
     public const string pluginName = "grpc_csharp_ext";             

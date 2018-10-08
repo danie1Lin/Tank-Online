@@ -51,13 +51,15 @@ namespace Grpc.Core.Internal
             var platform = Environment.OSVersion.Platform;
 
             // PlatformID.MacOSX is never returned, commonly used trick is to identify Mac is by using uname.
-            isMacOSX = (platform == PlatformID.Unix && GetUname() == "Darwin");
+            //isMacOSX = (platform == PlatformID.Unix && GetUname() == "Darwin");
             isLinux = (platform == PlatformID.Unix && !isMacOSX);
             isWindows = (platform == PlatformID.Win32NT || platform == PlatformID.Win32S || platform == PlatformID.Win32Windows);
             isNetCore = false;
 #endif
             isMono = Type.GetType("Mono.Runtime") != null;
+
             isUnity = Type.GetType(UnityEngineApplicationClassName) != null;
+            UnityEngine.Debug.Log("isMono"+isMono+"isUnity"+isUnity);
         }
 
         public static bool IsLinux

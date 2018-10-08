@@ -53,10 +53,21 @@ namespace Grpc.Core
     public interface IAsyncStreamReader<T> : IAsyncEnumerator<T>
     {
     }
+
 	public interface IAsyncEnumerator<T> : IDisposable
 	{
 		T Current { get; }
 		Task<bool> MoveNext(CancellationToken token);
 	}
 
+    public static class AsyncEnumerator
+    {
+        public static Task<bool> MoveNext<T>(this IAsyncEnumerator<T> enumerator)
+        {
+            if (enumerator == null)
+                throw new ArgumentNullException(nameof(enumerator));
+
+            return enumerator.MoveNext(CancellationToken.None);
+        }
+    }
 }

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-
+using UnityEngine.Events;
 namespace UnityStandardAssets.CrossPlatformInput
 {
 	[RequireComponent(typeof(Image))]
@@ -29,6 +29,7 @@ namespace UnityStandardAssets.CrossPlatformInput
 		public ControlStyle controlStyle = ControlStyle.Absolute; // control style to use
 		public string horizontalAxisName = "Horizontal"; // The name given to the horizontal axis for the cross platform input
 		public string verticalAxisName = "Vertical"; // The name given to the vertical axis for the cross platform input
+        public UnityEvent handelePress;
 		public float Xsensitivity = 1f;
 		public float Ysensitivity = 1f;
 
@@ -42,14 +43,15 @@ namespace UnityStandardAssets.CrossPlatformInput
 		bool m_Dragging;
 		int m_Id = -1;
 		Vector2 m_PreviousTouchPos; // swipe style control touch
+        Vector2 startPos;
 
 
-#if !UNITY_EDITOR
-    private Vector3 m_Center;
-    private Image m_Image;
-#else
+        private Vector3 m_Center;
+        private Image m_Image;
+        private float hieght;
+        private float width;
 		Vector3 m_PreviousMouse;
-#endif
+
 
 		void OnEnable()
 		{
@@ -58,13 +60,24 @@ namespace UnityStandardAssets.CrossPlatformInput
 
         void Start()
         {
-#if !UNITY_EDITOR
+
             m_Image = GetComponent<Image>();
+            var rect = RectTransformUtility.PixelAdjustRect(m_Image.rectTransform, GetComponentInParent<Canvas>());
+            Debug.Log(rect);
+            width = rect.width;
+            hieght = rect.height;
+#if !UNITY_EDITOR
             m_Center = m_Image.transform.position;
 #endif
+
+
         }
 
-		void CreateVirtualAxes()
+        void FristTouch(){
+
+        }
+
+        void CreateVirtualAxes()
 		{
 			// set axes to use
 			m_UseX = (axesToUse == AxisOption.Both || axesToUse == AxisOption.OnlyHorizontal);
@@ -85,7 +98,7 @@ namespace UnityStandardAssets.CrossPlatformInput
 
 		void UpdateVirtualAxes(Vector3 value)
 		{
-			value = value.normalized;
+			
 			if (m_UseX)
 			{
 				m_HorizontalVirtualAxis.Update(value.x);
@@ -100,13 +113,20 @@ namespace UnityStandardAssets.CrossPlatformInput
 
 		public void OnPointerDown(PointerEventData data)
 		{
+            GetComponent<CanvasRenderer>().SetAlpha(0);
+            foreach (var a in GetComponentsInChildren<Text>()){
+                a.enabled = false;
+            }
 			m_Dragging = true;
 			m_Id = data.pointerId;
+            startPos = data.position;
+
 #if !UNITY_EDITOR
         if (controlStyle != ControlStyle.Absolute )
             m_Center = data.position;
 #endif
 		}
+
 
 		void Update()
 		{
@@ -114,25 +134,32 @@ namespace UnityStandardAssets.CrossPlatformInput
 			{
 				return;
 			}
-			if (Input.touchCount >= m_Id + 1 && m_Id != -1)
-			{
-#if !UNITY_EDITOR
 
+#if !UNITY_EDITOR
+            if (Input.touchCount >= m_Id + 1 && m_Id != -1)
+            {
             if (controlStyle == ControlStyle.Swipe)
             {
                 m_Center = m_PreviousTouchPos;
                 m_PreviousTouchPos = Input.touches[m_Id].position;
             }
-            Vector2 pointerDelta = new Vector2(Input.touches[m_Id].position.x - m_Center.x , Input.touches[m_Id].position.y - m_Center.y).normalized;
+            Vector2 pointerDelta = new Vector2((Input.touches[m_Id].position.x - m_Center.x )/width, (Input.touches[m_Id].position.y - m_Center.y)/hieght);
             pointerDelta.x *= Xsensitivity;
             pointerDelta.y *= Ysensitivity;
+
 #else
-				Vector2 pointerDelta;
-				pointerDelta.x = Input.mousePosition.x - m_PreviousMouse.x;
-				pointerDelta.y = Input.mousePosition.y - m_PreviousMouse.y;
-				m_PreviousMouse = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0f);
+            if (Input.touchCount >= m_Id + 1) //&& m_Id != -1)
+            {
+                Vector2 pointerDelta;
+                pointerDelta.x = (Input.mousePosition.x - startPos.x)/width;
+                pointerDelta.y = (Input.mousePosition.y - startPos.y)/hieght;
+                //m_PreviousMouse = new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0f);
+                //Debug.Log("start"+startPos+"input mouse"+Input.mousePosition+"delta"+ pointerDelta);
 #endif
-				UpdateVirtualAxes(new Vector3(pointerDelta.x, pointerDelta.y, 0));
+
+
+                UpdateVirtualAxes(new Vector3(pointerDelta.x, pointerDelta.y, 0));
+
 			}
 		}
 
@@ -141,7 +168,9 @@ namespace UnityStandardAssets.CrossPlatformInput
 		{
 			m_Dragging = false;
 			m_Id = -1;
-			UpdateVirtualAxes(Vector3.zero);
+            handelePress.Invoke();
+            UpdateVirtualAxes(Vector3.zero);
+
 		}
 
 		void OnDisable()

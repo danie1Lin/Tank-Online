@@ -9,6 +9,7 @@ using Grpc.Core;
 using Google.Protobuf;
 using System.Collections.Concurrent;
 
+using UnityEngine.SceneManagement;
 
 
 public class util{
@@ -54,62 +55,84 @@ public class util{
 
 public class AgentRpc
 {
-    public static AgentRpc instance;
+
     public string Addr;
     private unity.WaitForFixedUpdate fixedUpdate;
     private ClientToAgent.ClientToAgentClient client;
     //Queue
     private CancellationTokenSource rpcStopSignal;
     public CancellationTokenSource roomContentToken;
+    public CancellationTokenSource AcquireGameServerToken;
     private Msg.Input m_Input;
     private Metadata metadata;
     private ServerInfo gameServerInfo;
-    public GameManager gm;
-    public ConcurrentQueue<RoomList> RoomListQueue;
-    public ConcurrentQueue<HomeView> HomeViewQueue;
-    public ConcurrentQueue<RoomContent> RoomContentQueue;
+    public static ConcurrentQueue<RoomList> RoomListQueue = new ConcurrentQueue<RoomList>();
+    public static ConcurrentQueue<HomeView> HomeViewQueue = new ConcurrentQueue<HomeView>();
+    public static ConcurrentQueue<RoomContent> RoomContentQueue = new ConcurrentQueue<RoomContent>();
+
     public Channel channel;
     public GameManager GM;
+    private static AgentRpc instance;
+    public static AgentRpc Instance {
+        get {
+            if (instance == null) {
+                AgentRpc.instance = new AgentRpc();
+            }
+            return AgentRpc.instance;
+        }
+    }
 
     public static bool ReconnectAgent()
     {
         instance.Stop();
-        new AgentRpc(AgentRpc.instance.Addr);
-
         return true;
     }
 
-    public AgentRpc(string addr)
+    protected AgentRpc()
     {
-        this.Addr = addr;
-        gm = unity.GameObject.Find("GameManager").GetComponent<GameManager>();
+        GM = GameManager.Instance;
         rpcStopSignal = new CancellationTokenSource();
         roomContentToken = new CancellationTokenSource();
-        metadata = new Metadata();
-        instance = this;
-        GM = GameManager.Instance;
+        metadata = GM.metadata;
+        unity.Debug.Log("Reload Agent");
+
     }
 
-    public bool ConnectServer(){
+    public SessionCache GetSessionCache(){
+        SessionCache cache = null;
+        try
+        {
+            cache = client.GetSessionCache(new Empty(), GM.metadata);
+
+        }
+        catch (RpcException e)
+        {
+            if (HandleError(e)) cache = GetSessionCache();
+        }
+        return cache;
+    }
+    
+    public async Task<bool> ConnectServer(string addr)
+    {
+        this.Addr = addr;
         try {
             channel = new Channel(Addr, ChannelCredentials.Insecure);
             client = new ClientToAgent.ClientToAgentClient(channel);
+            await channel.ConnectAsync();
             return true;
         }
         catch (RpcException e) {
 
             if (HandleError(e)) 
-                return ConnectServer();
+                return  await ConnectServer(addr);
         }
         return false;
     }
 
-    public bool GetSession(string username, string sessionid)
+    public bool GetSession(string sessionid)
     {
-        if (username != "" && sessionid != "")
+        if (sessionid != "")
         {
-            metadata.Add("session-id", sessionid);
-            metadata.Add("uname", username);
             unity.Debug.Log("Using old session" + sessionid);
             return true;
         }
@@ -117,16 +140,15 @@ public class AgentRpc
         {
             try
             {
-
-
                 var sessionkey = client.AquireSessionKey(new Empty(), cancellationToken: rpcStopSignal.Token);
                 unity.Debug.Log("GetNewSession" + sessionkey.Value);
                 GM.SessionId = sessionkey.Value;
                 metadata.Add("session-id", sessionkey.Value);
+
+                return true;
             }
             catch (RpcException e) {
-
-                if (HandleError(e)) return GetSession(username,sessionid);
+                return HandleError(e);
             }
         }
         return false;
@@ -134,6 +156,7 @@ public class AgentRpc
 
     public async void Stop()
     {
+        if (instance == null) return;
         rpcStopSignal.Cancel();
         if (!roomContentToken.IsCancellationRequested) roomContentToken.Cancel();
         await GrpcEnvironment.ShutdownChannelsAsync();
@@ -179,7 +202,7 @@ public class AgentRpc
         var success = client.JoinRoom(new ID { Value = uuid },metadata, cancellationToken: rpcStopSignal.Token);
         if (success.Ok){
             UpdateRoomContent();
-            gm.IsRoomEnter = true;
+            //GM.IsRoomEnter = true;
             return true;
         }
         return false;
@@ -192,8 +215,8 @@ public class AgentRpc
             var s = client.CreateRoom(setting, metadata, cancellationToken: rpcStopSignal.Token);
             if (s.Ok)
             {
-                UpdateRoomContent();
-                gm.IsRoomEnter = true;
+
+                //Gm.IsRoomEnter = true;
                 return true;
             }
         }
@@ -259,20 +282,26 @@ public class AgentRpc
 
     public async void AquireGameServer()
     {
+        AcquireGameServerToken = new CancellationTokenSource();
         unity.Debug.Log("Acquiring");
-        var serverInfo = await client.AquireGameServerAsync(new Empty(), metadata);
-        GM.IsRoomStart = true;
+        ServerInfo serverInfo = null;
+        try
+        {
+            serverInfo = await client.AquireGameServerAsync(new Empty(), metadata, cancellationToken: AcquireGameServerToken.Token);
+        }
+        catch (TaskCanceledException e) {
+            unity.Debug.Log("Cancel Acquire Server");
+            return;
+        }
         if (serverInfo != null)
         {
-            //unity.Debug.Log(serverInfo);
             GM.gameServerInfo = serverInfo;
-            GM.metadata = metadata;
-            GM.IsRoomStart = true;
+            GM.ChangeScence((int)Msg.SessionInfo.Types.SessionState.OnStart,"Desert");
         }
         
     }
 
-    public static bool HandleError(RpcException e)
+    public bool HandleError(RpcException e)
     {
         unity.Debug.Log("Handle Error" + e);
         switch (e.Status.StatusCode)
@@ -281,16 +310,21 @@ public class AgentRpc
                 //Session Not Found, require session key again
                 //GM.ResetCookie();
                 //GM.RestartGameLoop();
-                return false;
+
+                //GM.ChangeScence((int)Msg.SessionInfo.Types.SessionState.NoSession,"");
+                GM.metadata.Clear();
+                return GetSession("");
                 break;
             case StatusCode.Internal:
                 //Reconnect or Change Server
+
                 break;
             case StatusCode.Unavailable:
                 if (e.Status.Detail == "Connect Failed")
                 {
-                    //1.server is closed
-                    //2.
+                    unity.GameObject.Destroy(GameManager.instance.gameObject);
+                    SceneManager.LoadScene("PreStartGame");
+
                     return false;
                 }
                 else if (e.Status.Detail == "Endpoint read failed")
@@ -315,39 +349,60 @@ public class AgentRpc
 
 public class GameRpc
 {
-    public static GameRpc instance;
+    private static GameRpc instance;
     private unity.WaitForFixedUpdate fixedUpdate;
 	public ClientToGame.ClientToGameClient client;
 	private CancellationTokenSource rpcStopSignal;
 	private Msg.Input m_Input;
     private Metadata metadata;
-    public ConcurrentQueue<Msg.Input> InputQ;
-    public ConcurrentQueue<GameFrame> GameFrameQ;
+    public static ConcurrentQueue<Msg.Input> InputQ = new ConcurrentQueue<Input>();
+    public static ConcurrentQueue<GameFrame> GameFrameQ = new ConcurrentQueue<GameFrame>();
     public Channel channel;
     private ServerInfo info;
     public GameManager GM;
+    private bool IsConnected;
 
-	public GameRpc(ServerInfo info,Metadata metadata)
+    public static GameRpc Instance{
+        get {
+            if (instance == null){
+                instance = new GameRpc();
+            }
+            return instance;
+        }
+    }
+
+
+    protected GameRpc()
 	{
 		rpcStopSignal = new CancellationTokenSource ();
-        this.metadata = metadata;
-        this.info = info;
+        IsConnected = false;
         GM = GameManager.Instance;
         instance = this;
 	}
 
-    public bool ConnectServer()
+    public async Task<bool> ConnectServer(ServerInfo info, Metadata metadata)
     {
-        try
+        if (!IsConnected)
         {
-            channel = new Channel(info.Addr + ":8080", ChannelCredentials.Insecure);
-            this.client = new ClientToGame.ClientToGameClient(channel);
-            return true;
+            this.metadata = metadata;
+            this.info = info;
+            try
+            {
+                channel = new Channel(info.Addr + info.Port, ChannelCredentials.Insecure);
+                await channel.ConnectAsync();
+                unity.Debug.Log("Connect Success!");
+                this.client = new ClientToGame.ClientToGameClient(channel);
+                
+                IsConnected = true;
+                return true;
+            }
+            catch (RpcException e)
+            {
+                if (HandleError(e)) return await ConnectServer(info,metadata);
+            }
+            return false;
         }
-        catch (RpcException e) {
-            if (HandleError(e)) return ConnectServer();
-        }
-        return false;
+        return true;
     }
 
     public async void Input()
@@ -415,6 +470,7 @@ public class GameRpc
 
     public async void Stop()
     {
+        if (instance == null) return;
         rpcStopSignal.Cancel();
         await GrpcEnvironment.ShutdownChannelsAsync();
         await channel.ShutdownAsync();
@@ -429,6 +485,7 @@ public class GameRpc
                 //Session Not Found, require session key again
                 //GM.ResetCookie();
                 //GM.RestartGameLoop();
+                GameManager.Instance.ChangeScence((int)Msg.SessionInfo.Types.SessionState.NoSession,"");
                 return false;
                 break;
             case StatusCode.Internal:
@@ -460,7 +517,7 @@ public class GameRpc
 
 public static class AsyncEnumerator
 {
-	public static Task<bool> MoveNext<T>(this Grpc.Core.IAsyncEnumerator<T> enumerator)
+    public static Task<bool> MoveNext<T>(this Grpc.Core.IAsyncEnumerator<T> enumerator)
 	{
 		if (enumerator == null) 
 			throw new ArgumentNullException (nameof (enumerator));

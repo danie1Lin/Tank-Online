@@ -62,5 +62,8 @@ public class Entity : MonoBehaviour
         IsSyncToServer = isMainPlayer;
     }
 
+    public GameObject GetFace(){
+        return transform.Find("TankRenderers/TankTurret").gameObject;
+    }
     
 }

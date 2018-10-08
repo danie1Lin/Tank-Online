@@ -25,9 +25,14 @@ public abstract class MoveBase : MonoBehaviour {
     private bool IsMainPlayer;
     public bool IsSyncToServer;
     public ConcurrentQueue<Msg.Input> InputQ;
+    public const int MaxComboJump = 1;
+    public float JumpForce;
     public float m_inputThres;
     public Entity entity;
-
+    public TouchPad pad;
+    private int JumpingNumber;
+    private bool IsStopMoving;
+    private Quaternion preQ;
     private void Awake()
     {
         enabled = false;
@@ -36,6 +41,9 @@ public abstract class MoveBase : MonoBehaviour {
     {
         InputQ = EntityManager.instance.InputQ;
         entity = gameObject.GetComponent<Entity>();
+        JumpingNumber = 0;
+        pad = GameObject.Find("MoveTouchpad").GetComponent<TouchPad>();
+        pad.handelePress.AddListener(OnStopMove);
     }
     public virtual void Move(Vector3 pos, Quaternion q, Vector3 vel)
     {
@@ -49,23 +57,55 @@ public abstract class MoveBase : MonoBehaviour {
         }
     }
 
+    public virtual void Jump(){
+        if (JumpingNumber < MaxComboJump)
+        {
+            GetComponent<Rigidbody>().AddForce(JumpForce*(new Vector3(0,1,0)));
+            JumpingNumber++;
+        }
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Terrain")){
+            JumpingNumber = 0;
+        }
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Terrain"))
+        {
+            JumpingNumber = 0;
+        }
+    }
+
     public virtual void MoveAnimation()
     {
         //Adjust animation;
+    }
+
+    public void OnStopMove(){
+        IsStopMoving = true;
     }
 
     public virtual void Input()
     {
         if (IsMainPlayer)
         {
-            var h = CrossPlatformInputManager.GetAxisRaw("Horizontal");
-            var v = CrossPlatformInputManager.GetAxisRaw("Vertical");
-            var axis = new Vector3(h, 0, v);
+            if (IsStopMoving){
+                preQ = gameObject.transform.rotation;
+                IsStopMoving = false;
+            }
+            var h = CrossPlatformInputManager.GetAxis("Horizontal");
+            var v = CrossPlatformInputManager.GetAxis("Vertical");
+            var axis = new Vector3(h, 0 , v);
             if (axis.magnitude > m_inputThres)
-            {
-                gameObject.transform.rotation = Quaternion.AngleAxis(Mathf.Atan2(-h, v) * Mathf.Rad2Deg, new Vector3(0f, -1f, 0f));
+            {//-h v
+                gameObject.transform.rotation = preQ * Quaternion.AngleAxis(Mathf.Atan2(-h,v) * Mathf.Rad2Deg, new Vector3(0f, -1f, 0f));
                 //gameObject.transform.Translate(gameObject.transform.forward *axis.magnitude* Time.deltaTime * m_pStep);
-                GetComponent<Rigidbody>().velocity = axis * m_pStep;
+                GetComponent<Rigidbody>().velocity = transform.forward * m_pStep + new Vector3(0, GetComponent<Rigidbody>().velocity.y, 0);
+                //GetComponent<Rigidbody>().velocity = axis * m_pStep + new Vector3(0,GetComponent<Rigidbody>().velocity.y,0);
                 //Debug.Log((v * m_qStep).ToString()+"   "+ (h * Time.deltaTime * m_pStep).ToString());
                 //entity.state.Speed = new Msg.Vector3 { X = (axis * m_pStep).x, Y = (axis * m_pStep).y, Z = (axis * m_pStep).z };
             }
@@ -190,6 +230,7 @@ public abstract class InteractionAcceptor : MonoBehaviour
         //接收自其他客戶端
         if (entity.IsSyncToServer)
         {
+            Debug.Log("Get Interaction");
             switch (interact.Type)
             {
                 case "Harm":
@@ -211,7 +252,8 @@ public abstract class InteractionAcceptor : MonoBehaviour
         else
         {
             interact.ToEntityId = gameObject.GetComponent<Entity>().state.Uuid;
-            EntityManager.instance.t_Input.Interaction.Add(interact.Clone());
+            EntityManager.instance.t_Input.Interaction.Add(interact);
+            Debug.Log("Send Interaction");
         }
     }
 
@@ -274,8 +316,10 @@ public abstract class InteractionApplyer : MonoBehaviour
     public Msg.Interaction interact;
     public Entity entity;
     public float explsionRadius;
+    private bool IsExploded;
     private void Start()
     {
+        IsExploded = false;
         entity = gameObject.GetComponent<Entity>();
         interact = new Msg.Interaction
         {
@@ -285,23 +329,18 @@ public abstract class InteractionApplyer : MonoBehaviour
     }
     public Msg.Interaction Collide(GameObject go)
     {
-        Debug.Log("Collide");
-        if (entity.IsSyncToServer)
-        {
-            interact.ApplyPoint = util.PosUnityToMsg(gameObject.transform.position);
-            EntityManager.instance.t_Input.DestroyEntity.Add(entity.state.Uuid);
-            interact.Direction = new Msg.Vector3();
-            interact.Direction.X = 5 - (go.transform.position - gameObject.transform.position).magnitude;
-            if (interact.Direction.X <= 0)
-            {
-                return null;
-            }
-            return interact.Clone();
-        }
-        else
+
+        var t_inter = interact.Clone();
+        t_inter.ApplyPoint = util.PosUnityToMsg(gameObject.transform.position);
+        t_inter.Direction = new Msg.Vector3();
+        //t_inter.Direction.X = 5 - (go.transform.position - gameObject.transform.position).magnitude;
+        t_inter.Direction.X = 10f;
+        if (t_inter.Direction.X <= 0)
         {
             return null;
         }
+        return t_inter;
+        
     }
 
     private void OnTriggerEnter(Collider other)
@@ -311,27 +350,39 @@ public abstract class InteractionApplyer : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        Debug.Log("OnCollisionEnter");
-        var colliders = Physics.OverlapSphere(transform.position, 5f);
-        foreach (var collider in colliders)
+        if (IsExploded) return;
+        if (entity.IsSyncToServer)
         {
-            if (collider.gameObject.layer == LayerMask.NameToLayer("Players"))
+            IsExploded = true;
+            var colliders = Physics.OverlapSphere(transform.position, explsionRadius);
+            foreach (var collider in colliders)
             {
-                var interaction = Collide(collider.gameObject);
-                if (interaction == null) continue;
-                collider.GetComponent<Entity>().m_acceptor.Accept(interaction);
+                if (collider.gameObject.layer == LayerMask.NameToLayer("Player"))
+                {
+                    var interaction = Collide(collider.gameObject);
+                    if (interaction == null) continue;
+                    collider.GetComponent<Entity>().m_acceptor.Accept(interaction);
 
-                Rigidbody rb = collider.GetComponent<Rigidbody>();
-                rb.AddExplosionForce(1000F, transform.position, 50, 300.0F);
+                    Rigidbody rb = collider.GetComponent<Rigidbody>();
+                    rb.AddExplosionForce(1000F, transform.position, explsionRadius, 0F);
+
+                }
             }
+            DestroyOnCollide();
+            //Destroy(gameObject);
+
         }
-        DestroyOnCollide();
-        //Destroy(gameObject);
+
+
     }
 
     private void DestroyOnCollide()
     {
+        gameObject.GetComponent<MeshRenderer>().enabled = false;
+
         EntityManager.instance.DestoryEntityByClient(GetComponent<Entity>().state.Uuid);
+        EntityManager.instance.t_Input.DestroyEntity.Add(entity.state.Uuid);
+
     }
 }
 

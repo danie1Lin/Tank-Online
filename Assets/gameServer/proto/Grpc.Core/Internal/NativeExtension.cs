@@ -104,7 +104,7 @@ namespace Grpc.Core.Internal
             // Look for the native library in all possible locations in given order.
             //string[] paths = new[] { classicPath, netCorePublishedAppStylePath, netCoreAppStylePath};
 
-            var unityPath = Path.Combine(assemblyDirectory, "../../Assets/Plugins/GrpcLib", runtimesDirectory, GetNativeLibraryFilename());
+            var unityPath = Path.Combine(assemblyDirectory, "../../Assets/Plugins/Grpc.Core", runtimesDirectory, GetNativeLibraryFilename());
             string[] paths = new[] { classicPath, netCorePublishedAppStylePath, netCoreAppStylePath, unityPath };
             return new UnmanagedLibrary(paths);
         }

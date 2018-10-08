@@ -51,6 +51,12 @@ message Transform {
     Quaternion Rotation = 2;
 }
 
+message SessionCache {
+    ServerInfo GameServerInfo = 1;
+    SessionInfo SessionInfo = 2;
+     
+}
+
 message Vector3{
     float X = 1;
     float Y = 2;
@@ -98,6 +104,7 @@ service AgentToGame{
 service ClientToAgent{
     rpc AquireSessionKey(Empty) returns (SessionKey) {}
     rpc AquireOtherAgent(Empty) returns (ServerInfo) {}
+    rpc GetSessionCache(Empty) returns (SessionCache) {}
     //Login
     rpc Login(LoginInput) returns(UserInfo){}
     rpc CreateAccount(RegistInput) returns(Error){}
@@ -109,6 +116,7 @@ service ClientToAgent{
     rpc CreateRoom(RoomSetting) returns (Success){}
     rpc JoinRoom(ID) returns (Success){}
     rpc RoomReady(Empty) returns (Success) {}
+    
     //Team
     /*
     rpc InviteTeam() returns (){}
@@ -281,7 +289,13 @@ message SessionInfo{
         Guest = 1;
         UserIdle = 2;
         UserInRoom = 3;
-        Playing = 4;
+        ConnectingGame = 4;
+        AgentServerWaitReconnect = 5;
+        //in game server
+        OnStart = 6;
+        Playing = 7;
+        GameOver = 8;
+        GameServerWaitReconnect = 9;
     }
     enum SessionCapacity {
         GM = 0;

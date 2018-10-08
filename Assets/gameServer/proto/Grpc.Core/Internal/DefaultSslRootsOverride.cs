@@ -41,7 +41,7 @@ namespace Grpc.Core.Internal
         {
             lock (staticLock)
             {
-				/*
+			    /*	
                 var stream = typeof(DefaultSslRootsOverride).GetTypeInfo().Assembly.GetManifestResourceStream(RootsPemResourceName);
                 if (stream == null)
                 {
